@@ -110,15 +110,19 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
   const [draft, setDraft] = useState<Recipe>(recipe);
 
   // Serving size calculator
+  // originalServings is the parsed number from the recipe's servings string (may be null if unparseable)
+  // baseServings is locked at mount and used as the ×1 reference for scaling
   const originalServings = useMemo(() => parseServings(recipe.servings), [recipe.servings]);
-  const [scaledServings, setScaledServings] = useState<number>(originalServings ?? 1);
-  const isScaled = originalServings !== null && scaledServings !== originalServings;
-  const scalingMultiplier = originalServings ? scaledServings / originalServings : 1;
+  const DEFAULT_SERVINGS = 4;
+  const [baseServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
+  const [scaledServings, setScaledServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
+  const isScaled = scaledServings !== baseServings;
+  const scalingMultiplier = baseServings > 0 ? scaledServings / baseServings : 1;
 
   const adjustServings = (delta: number) => {
     setScaledServings((prev) => Math.max(1, prev + delta));
   };
-  const resetServings = () => setScaledServings(originalServings ?? 1);
+  const resetServings = () => setScaledServings(baseServings);
 
   // Edit mode helpers
   const startEditing = () => {
@@ -333,7 +337,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
               <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2 shrink-0">
                 <span>🧄</span> Ingredients
               </h2>
-              {!isEditing && originalServings !== null && (
+              {!isEditing && (
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => adjustServings(-1)}
@@ -370,8 +374,11 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
             {/* Scaled notice */}
             {!isEditing && isScaled && (
               <p className="text-xs text-amber-600 italic mb-3">
-                Scaled from {originalServings} serving{originalServings !== 1 ? "s" : ""}
-                {" "}— amounts marked <span className="text-stone-400">~</span> are unmeasured and unchanged.
+                {originalServings !== null
+                  ? <>Scaled from {originalServings} serving{originalServings !== 1 ? "s" : ""} — </>
+                  : <>Scaled — </>
+                }
+                amounts marked <span className="text-stone-400">~</span> are unmeasured and unchanged.
               </p>
             )}
 
