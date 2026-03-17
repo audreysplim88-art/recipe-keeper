@@ -1,7 +1,7 @@
 "use client";
 
 import { Recipe, Ingredient, Tip } from "@/lib/types";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -27,22 +27,109 @@ const tipCategoryIcon: Record<Tip["category"], string> = {
 const inputCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400";
 const textareaCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none";
 
+// ─── Serving size calculator helpers ────────────────────────────────────────
+
+/** Extract the first number from a servings string e.g. "4 servings" → 4, "6-8 people" → 6 */
+function parseServings(servings: string): number | null {
+  const match = servings.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const n = parseFloat(match[1]);
+  return isNaN(n) || n <= 0 ? null : n;
+}
+
+/** Parse an amount string to a decimal number. Returns null if not numeric. */
+function parseAmount(amount: string): number | null {
+  const trimmed = amount.trim();
+
+  // Mixed number: "2 1/2"
+  const mixed = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+
+  // Simple fraction: "1/2"
+  const fraction = trimmed.match(/^(\d+)\/(\d+)$/);
+  if (fraction) {
+    const den = parseInt(fraction[2]);
+    if (den === 0) return null;
+    return parseInt(fraction[1]) / den;
+  }
+
+  // Plain integer or decimal: "3", "1.5"
+  const num = parseFloat(trimmed);
+  return isNaN(num) ? null : num;
+}
+
+/** Convert a decimal back to a readable amount string using nice fractions. */
+function formatAmount(value: number): string {
+  if (value <= 0) return "0";
+
+  // Common fractions as [numerator, denominator, display]
+  const FRACTIONS: [number, number, string][] = [
+    [1, 8, "1/8"], [1, 4, "1/4"], [1, 3, "1/3"], [3, 8, "3/8"],
+    [1, 2, "1/2"], [5, 8, "5/8"], [2, 3, "2/3"], [3, 4, "3/4"], [7, 8, "7/8"],
+  ];
+
+  const whole = Math.floor(value);
+  const decimal = value - whole;
+
+  // Close enough to a whole number
+  if (decimal < 0.05) return String(whole === 0 ? Math.round(value) : whole);
+  if (decimal > 0.95) return String(whole + 1);
+
+  // Find the closest common fraction
+  let bestLabel = "";
+  let bestError = Infinity;
+  for (const [num, den, label] of FRACTIONS) {
+    const error = Math.abs(decimal - num / den);
+    if (error < bestError) {
+      bestError = error;
+      bestLabel = label;
+    }
+  }
+
+  if (bestError < 0.07 && bestLabel) {
+    return whole > 0 ? `${whole} ${bestLabel}` : bestLabel;
+  }
+
+  // Fall back to one decimal place
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
+/** Scale an amount string by a multiplier. Returns { scaled, wasScaled }. */
+function scaleAmount(amount: string, multiplier: number): { display: string; scaled: boolean } {
+  if (multiplier === 1) return { display: amount, scaled: false };
+  const parsed = parseAmount(amount);
+  if (parsed === null) return { display: amount, scaled: false };
+  return { display: formatAmount(parsed * multiplier), scaled: true };
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Recipe>(recipe);
 
+  // Serving size calculator
+  const originalServings = useMemo(() => parseServings(recipe.servings), [recipe.servings]);
+  const [scaledServings, setScaledServings] = useState<number>(originalServings ?? 1);
+  const isScaled = originalServings !== null && scaledServings !== originalServings;
+  const scalingMultiplier = originalServings ? scaledServings / originalServings : 1;
+
+  const adjustServings = (delta: number) => {
+    setScaledServings((prev) => Math.max(1, prev + delta));
+  };
+  const resetServings = () => setScaledServings(originalServings ?? 1);
+
+  // Edit mode helpers
   const startEditing = () => {
     setDraft({ ...recipe });
     setIsEditing(true);
     setShowDeleteConfirm(false);
   };
-
   const cancelEditing = () => {
     setDraft({ ...recipe });
     setIsEditing(false);
   };
-
   const saveEditing = () => {
     const updated = { ...draft, updatedAt: new Date().toISOString() };
     onSave?.(updated);
@@ -240,9 +327,54 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
         <div className="grid md:grid-cols-5 gap-0">
           {/* Ingredients */}
           <div className="md:col-span-2 bg-stone-50 p-6 border-r border-stone-100">
-            <h2 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
-              <span>🧄</span> Ingredients
-            </h2>
+
+            {/* Ingredients header + serving calculator */}
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2 shrink-0">
+                <span>🧄</span> Ingredients
+              </h2>
+              {!isEditing && originalServings !== null && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => adjustServings(-1)}
+                    disabled={scaledServings <= 1}
+                    className="w-6 h-6 rounded-full bg-amber-100 hover:bg-amber-200 disabled:opacity-30 disabled:cursor-not-allowed text-amber-800 font-bold text-sm flex items-center justify-center transition-colors"
+                    title="Fewer servings"
+                  >
+                    −
+                  </button>
+                  <div className={`text-center min-w-[4rem] ${isScaled ? "text-amber-700 font-semibold" : "text-stone-500"} text-xs`}>
+                    <div className="font-bold text-sm">{scaledServings}</div>
+                    <div className="leading-none">serving{scaledServings !== 1 ? "s" : ""}</div>
+                  </div>
+                  <button
+                    onClick={() => adjustServings(1)}
+                    className="w-6 h-6 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-sm flex items-center justify-center transition-colors"
+                    title="More servings"
+                  >
+                    +
+                  </button>
+                  {isScaled && (
+                    <button
+                      onClick={resetServings}
+                      className="text-xs text-stone-400 hover:text-amber-700 transition-colors ml-0.5 underline underline-offset-2"
+                      title={`Reset to ${originalServings}`}
+                    >
+                      reset
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Scaled notice */}
+            {!isEditing && isScaled && (
+              <p className="text-xs text-amber-600 italic mb-3">
+                Scaled from {originalServings} serving{originalServings !== 1 ? "s" : ""}
+                {" "}— amounts marked <span className="text-stone-400">~</span> are unmeasured and unchanged.
+              </p>
+            )}
+
             {isEditing ? (
               <div className="space-y-3">
                 {draft.ingredients.map((ing, i) => (
@@ -291,19 +423,23 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
               </div>
             ) : (
               <ul className="space-y-2">
-                {display.ingredients.map((ing, i) => (
-                  <li key={i} className="flex gap-2 text-sm">
-                    <span className="text-amber-600 font-semibold shrink-0 min-w-[3rem]">
-                      {ing.amount} {ing.unit}
-                    </span>
-                    <span className="text-stone-700">
-                      {ing.name}
-                      {ing.notes && (
-                        <span className="text-stone-400 italic ml-1">({ing.notes})</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
+                {display.ingredients.map((ing, i) => {
+                  const { display: scaledAmt, scaled } = scaleAmount(ing.amount, scalingMultiplier);
+                  return (
+                    <li key={i} className="flex gap-2 text-sm">
+                      <span className={`font-semibold shrink-0 min-w-[3rem] ${isScaled ? "text-amber-700" : "text-amber-600"}`}>
+                        {!scaled && ing.amount ? <span className="text-stone-400">~</span> : null}
+                        {scaledAmt} {ing.unit}
+                      </span>
+                      <span className="text-stone-700">
+                        {ing.name}
+                        {ing.notes && (
+                          <span className="text-stone-400 italic ml-1">({ing.notes})</span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
