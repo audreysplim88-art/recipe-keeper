@@ -5,8 +5,6 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are a recipe scribe with a gift for capturing not just instructions, but the soul of cooking.
 
-Your job is to listen to a cook narrate their process — which may be rambling, conversational, and full of personal insights — and distill it into a structured recipe.
-
 You MUST return a valid JSON object with exactly this shape:
 {
   "title": "string — a warm, descriptive recipe name",
@@ -34,30 +32,37 @@ You MUST return a valid JSON object with exactly this shape:
 }
 
 CRITICAL RULES:
-- The "tips" array is the most important part. Capture EVERY personal insight, sensory cue (look for X, it should smell like Y, feel for Z), technique nuance, ingredient preference, or "my mother always..." moment.
-- If the cook says something like "you want it to look golden, not brown" or "I only use this brand" or "the trick is to not rush this part" — that goes in tips.
+- The "tips" array captures wisdom that doesn't appear in standard recipe steps: sensory cues (look for X, it should smell like Y), technique nuances, ingredient preferences, substitution notes, or anything that helps someone cook this dish *well*.
 - Separate the WHAT (instructions) from the WHY and HOW THEY KNOW (tips).
 - Make reasonable estimates for times and quantities if not stated explicitly.
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
+const USER_MESSAGES: Record<string, (content: string) => string> = {
+  narration: (content) =>
+    `Here is my cooking narration — rambling, personal, exactly as I said it. Please extract a complete recipe, and pay special attention to every tip, trick, or personal insight I mentioned:\n\n${content}`,
+
+  text: (content) =>
+    `Here is a written recipe (pasted from a document or typed up from notes). Please structure it into the required format. Extract any implicit tips or technique notes you notice, even if the original didn't label them as such:\n\n${content}`,
+
+  url: (content) =>
+    `Here is the text content extracted from a recipe webpage. Please structure it into the required format, extracting any tips, technique notes, or useful asides the author included:\n\n${content}`,
+};
+
 export async function POST(request: Request) {
   try {
-    const { transcript } = await request.json();
+    const { transcript, source = "narration" } = await request.json();
 
     if (!transcript || typeof transcript !== "string" || transcript.trim().length < 10) {
-      return Response.json({ error: "Please provide a recipe narration." }, { status: 400 });
+      return Response.json({ error: "Please provide some recipe content." }, { status: 400 });
     }
+
+    const getUserMessage = USER_MESSAGES[source] ?? USER_MESSAGES.narration;
 
     const stream = client.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Here is my cooking narration. Please extract a complete recipe from it:\n\n${transcript}`,
-        },
-      ],
+      messages: [{ role: "user", content: getUserMessage(transcript) }],
     });
 
     const response = await stream.finalMessage();
@@ -69,7 +74,6 @@ export async function POST(request: Request) {
 
     let recipeData: RecipeGenerationResult;
     try {
-      // Strip any accidental markdown code fences
       const cleaned = textBlock.text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
       recipeData = JSON.parse(cleaned);
     } catch {
