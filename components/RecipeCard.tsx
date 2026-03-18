@@ -7,6 +7,7 @@ import {
   AllergenTag, ALLERGEN_META, ALLERGEN_ORDER,
 } from "@/lib/types";
 import { useState, useMemo } from "react";
+import Link from "next/link";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -253,6 +254,15 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
               </>
             ) : (
               <div className="flex items-center gap-3">
+                {/* Start Cooking button — links to the sous chef session */}
+                <Link href={`/cook/${recipe.id}`}>
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
+                    title="Start a guided cooking session"
+                  >
+                    👨‍🍳 Start Cooking
+                  </button>
+                </Link>
                 {onSave && (
                   <button
                     onClick={startEditing}

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import VoiceCapture from "@/components/VoiceCapture";
 import { saveRecipe, generateId } from "@/lib/storage";
 import { Recipe, RecipeGenerationResult } from "@/lib/types";
+
+const BACKUP_KEY = "capture-backup";
+const BACKUP_INTERVAL_MS = 30_000; // auto-save every 30 s of inactivity
 
 type Stage = "capture" | "generating" | "preview";
 type InputMode = "narrate" | "paste" | "url";
@@ -42,6 +45,8 @@ export default function CapturePage() {
   const [error, setError] = useState<string | null>(null);
   const [generatedRecipe, setGeneratedRecipe] = useState<RecipeGenerationResult | null>(null);
   const [recipeName, setRecipeName] = useState("");
+  const [showRestoreBanner, setShowRestoreBanner] = useState(false);
+  const lastBackupTimeRef = useRef<number>(0);
 
   // Warn on browser refresh / tab close when a recipe is unsaved
   useEffect(() => {
@@ -53,6 +58,37 @@ export default function CapturePage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [stage]);
+
+  // Check for backup on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(BACKUP_KEY);
+      if (raw) {
+        const backup = JSON.parse(raw) as { transcript: string; savedAt: string };
+        if (backup.transcript && backup.transcript.trim().length > 20) {
+          setShowRestoreBanner(true);
+        }
+      }
+    } catch {
+      // Corrupt backup — ignore
+    }
+  }, []);
+
+  // Auto-save narration to sessionStorage (at most once per 30 s)
+  useEffect(() => {
+    if (inputMode !== "narrate" || transcript.trim().length < 20) return;
+    const now = Date.now();
+    if (now - lastBackupTimeRef.current < BACKUP_INTERVAL_MS) return;
+    lastBackupTimeRef.current = now;
+    try {
+      sessionStorage.setItem(
+        BACKUP_KEY,
+        JSON.stringify({ transcript, savedAt: new Date().toISOString() })
+      );
+    } catch {
+      // Storage full or unavailable — silently skip
+    }
+  }, [transcript, inputMode]);
 
   // Guard for in-app navigation away from an unsaved preview
   const safeNavigate = useCallback((destination: string) => {
@@ -67,6 +103,25 @@ export default function CapturePage() {
   const handleModeChange = (mode: InputMode) => {
     setInputMode(mode);
     setError(null);
+  };
+
+  const handleRestoreBackup = () => {
+    try {
+      const raw = sessionStorage.getItem(BACKUP_KEY);
+      if (raw) {
+        const backup = JSON.parse(raw) as { transcript: string };
+        setTranscript(backup.transcript);
+        setInputMode("narrate");
+      }
+    } catch {
+      // Ignore
+    }
+    setShowRestoreBanner(false);
+  };
+
+  const handleDismissBackup = () => {
+    sessionStorage.removeItem(BACKUP_KEY);
+    setShowRestoreBanner(false);
   };
 
   /** Fetch a URL server-side and populate the paste textarea with the extracted text. */
@@ -146,6 +201,7 @@ export default function CapturePage() {
       updatedAt: now,
     };
     saveRecipe(recipe);
+    sessionStorage.removeItem(BACKUP_KEY); // clear safety net after successful save
     router.refresh();
     router.push(`/recipe/${recipe.id}`);
   };
@@ -167,6 +223,29 @@ export default function CapturePage() {
 
   return (
     <div className="min-h-screen bg-stone-100">
+      {/* Restore banner */}
+      {showRestoreBanner && (
+        <div className="bg-amber-100 border-b border-amber-300 px-6 py-3 flex items-center justify-between gap-4">
+          <p className="text-amber-800 text-sm">
+            📝 We found an unsaved narration from a previous session.
+          </p>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={handleRestoreBackup}
+              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
+            >
+              Restore
+            </button>
+            <button
+              onClick={handleDismissBackup}
+              className="px-3 py-1 rounded-lg bg-stone-300 hover:bg-stone-400 text-stone-700 text-sm transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="bg-amber-800 text-white px-6 py-4 flex items-center gap-4">
         <button onClick={handleNavBack} className="text-amber-200 hover:text-white transition-colors text-sm">
