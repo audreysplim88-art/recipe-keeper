@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getRecipes } from "@/lib/storage";
+import { getRecipes, saveRecipe } from "@/lib/storage";
 import { Recipe, RecipeCategory, CATEGORY_META, CATEGORY_ORDER, DIETARY_META } from "@/lib/types";
 
 export default function HomePage() {
@@ -52,6 +52,51 @@ export default function HomePage() {
 
   const isSearching = query.trim().length > 0;
 
+  // Backfill: recipes that have no dietary or allergen data yet
+  const untaggedRecipes = useMemo(
+    () => recipes.filter((r) => r.dietaryTags === undefined && r.allergens === undefined),
+    [recipes]
+  );
+
+  type BackfillState = { total: number; done: number; errors: number; running: boolean };
+  const [backfill, setBackfill] = useState<BackfillState | null>(null);
+
+  const runBackfill = async () => {
+    const toProcess = getRecipes().filter(
+      (r) => r.dietaryTags === undefined && r.allergens === undefined
+    );
+    if (toProcess.length === 0) return;
+
+    setBackfill({ total: toProcess.length, done: 0, errors: 0, running: true });
+
+    for (let i = 0; i < toProcess.length; i++) {
+      const recipe = toProcess[i];
+      try {
+        const res = await fetch("/api/classify-recipe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: recipe.title,
+            description: recipe.description,
+            ingredients: recipe.ingredients,
+          }),
+        });
+        if (res.ok) {
+          const { dietaryTags, allergens } = await res.json();
+          saveRecipe({ ...recipe, dietaryTags: dietaryTags ?? [], allergens: allergens ?? [] });
+          setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1 }));
+        } else {
+          setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1, errors: prev.errors + 1 }));
+        }
+      } catch {
+        setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1, errors: prev.errors + 1 }));
+      }
+    }
+
+    setBackfill((prev) => prev && ({ ...prev, running: false }));
+    loadRecipes(); // refresh the list
+  };
+
   return (
     <div className="min-h-screen bg-stone-100">
       {/* Header */}
@@ -100,6 +145,75 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Backfill banner */}
+        {!isSearching && recipes.length > 0 && (backfill !== null || untaggedRecipes.length > 0) && (
+          <div className={`mb-6 rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
+            backfill?.running
+              ? "bg-amber-50 border-amber-200"
+              : backfill && !backfill.running
+              ? backfill.errors === 0
+                ? "bg-green-50 border-green-200"
+                : "bg-amber-50 border-amber-200"
+              : "bg-amber-50 border-amber-200"
+          }`}>
+            {backfill?.running ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="animate-spin text-lg">⏳</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">
+                      Detecting allergens & dietary info…
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      {backfill.done} of {backfill.total} recipes processed
+                    </p>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div className="w-32 bg-amber-200 rounded-full h-2 shrink-0">
+                  <div
+                    className="bg-amber-600 h-2 rounded-full transition-all"
+                    style={{ width: `${(backfill.done / backfill.total) * 100}%` }}
+                  />
+                </div>
+              </>
+            ) : backfill && !backfill.running ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{backfill.errors === 0 ? "✅" : "⚠️"}</span>
+                  <p className="text-sm font-semibold text-stone-700">
+                    {backfill.errors === 0
+                      ? `All ${backfill.total} recipes updated with allergen & dietary info`
+                      : `${backfill.done - backfill.errors} of ${backfill.total} recipes updated (${backfill.errors} failed)`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setBackfill(null)}
+                  className="text-stone-400 hover:text-stone-600 text-lg leading-none shrink-0"
+                  aria-label="Dismiss"
+                >×</button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">
+                    {untaggedRecipes.length} {untaggedRecipes.length === 1 ? "recipe is" : "recipes are"} missing allergen & dietary info
+                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Run auto-detection to tag your existing recipes
+                  </p>
+                </div>
+                <button
+                  onClick={runBackfill}
+                  className="shrink-0 flex items-center gap-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors"
+                >
+                  ✨ Auto-detect now
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {recipes.length === 0 ? (
           <EmptyState />
         ) : isSearching ? (
