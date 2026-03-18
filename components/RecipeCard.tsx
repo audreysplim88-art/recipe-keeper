@@ -1,6 +1,6 @@
 "use client";
 
-import { Recipe, Ingredient, Tip } from "@/lib/types";
+import { Recipe, Ingredient, Tip, RecipeCategory, CATEGORY_META, CATEGORY_ORDER } from "@/lib/types";
 import { useState, useMemo } from "react";
 
 interface RecipeCardProps {
@@ -197,9 +197,26 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                   placeholder="Description"
                 />
+                {/* Category selector */}
+                <select
+                  className={`${inputCls} text-stone-700`}
+                  value={draft.category ?? "other"}
+                  onChange={(e) => setDraft({ ...draft, category: e.target.value as RecipeCategory })}
+                >
+                  {CATEGORY_ORDER.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {CATEGORY_META[cat].emoji} {CATEGORY_META[cat].label}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : (
               <>
+                {display.category && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-200 border border-amber-400/50 rounded-full px-2.5 py-0.5 mb-3">
+                    {CATEGORY_META[display.category].emoji} {CATEGORY_META[display.category].label}
+                  </span>
+                )}
                 <h1 className="text-3xl font-bold mb-2 font-serif">{display.title}</h1>
                 <p className="text-amber-100 text-lg leading-relaxed">{display.description}</p>
               </>

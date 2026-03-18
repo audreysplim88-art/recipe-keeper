@@ -9,6 +9,7 @@ You MUST return a valid JSON object with exactly this shape:
 {
   "title": "string — a warm, descriptive recipe name",
   "description": "string — 1-2 sentences capturing the spirit of the dish",
+  "category": "one of: starters | mains | desserts | sides | soups-salads | breakfast | snacks | drinks | sauces | other",
   "servings": "string — e.g. '4 servings' or '6-8 people'",
   "prepTime": "string — e.g. '20 minutes' or 'about half an hour'",
   "cookTime": "string — e.g. '45 minutes'",
@@ -35,6 +36,7 @@ CRITICAL RULES:
 - The "tips" array captures wisdom that doesn't appear in standard recipe steps: sensory cues (look for X, it should smell like Y), technique nuances, ingredient preferences, substitution notes, or anything that helps someone cook this dish *well*.
 - Separate the WHAT (instructions) from the WHY and HOW THEY KNOW (tips).
 - Make reasonable estimates for times and quantities if not stated explicitly.
+- Choose the most appropriate "category" based on the dish — use "other" only as a last resort.
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
 const USER_MESSAGES: Record<string, (content: string) => string> = {
