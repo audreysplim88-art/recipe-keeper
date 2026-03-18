@@ -40,7 +40,7 @@ __tests__/
 │   ├── tts.test.ts          # TTSManager unit tests
 │   └── storage.test.ts      # localStorage CRUD tests
 ├── api/
-│   └── sous-chef.test.ts    # Sous chef API route tests  (added Step 3)
+│   └── sous-chef.test.ts    # Sous chef API route tests
 └── components/
     ├── CookingVoiceInput.test.tsx   (added Step 4)
     └── SousChefSession.test.tsx     (added Step 5)
@@ -79,8 +79,20 @@ Tests the localStorage CRUD layer.
 
 ---
 
-### `app/api/sous-chef` — (added Step 3)
-*See Step 3 commit.*
+### `app/api/sous-chef` — 15 tests ✅
+Tests the streaming SSE API route that powers the sous chef conversation.
+
+**Test environment:** `@jest-environment node` (Web APIs — `Response`, `ReadableStream`, `TextEncoder` — not available in jsdom)
+
+| Test group | What is covered |
+|---|---|
+| `input validation` | 400 when recipe missing or has no title; 400 when messages is empty or not an array |
+| `successful streaming` | 200 + correct SSE headers; text deltas streamed and terminated with `[DONE]`; non-text events ignored; recipe and messages forwarded to Anthropic client |
+| `sliding window` | Last 20 messages sent when conversation is longer; all messages sent when ≤ 20 |
+| `system prompt` | Title, servings, cook time, allergens, tips/secrets all present in prompt |
+| `error handling` | Generic errors produce `error` SSE payload; `AuthenticationError` produces "Invalid API key" in stream |
+
+**Key mocks:** `@anthropic-ai/sdk` — `MockAnthropic` with a self-contained async generator stream. Uses a shared `mockState` object (not `let` bindings) to avoid TDZ issues with Jest's hoisted `jest.mock` factory.
 
 ---
 
