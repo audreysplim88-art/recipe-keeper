@@ -114,7 +114,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
   // baseServings is locked at mount and used as the ×1 reference for scaling
   const originalServings = useMemo(() => parseServings(recipe.servings), [recipe.servings]);
   const DEFAULT_SERVINGS = 4;
-  const [baseServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
+  const [baseServings, setBaseServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
   const [scaledServings, setScaledServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
   const isScaled = scaledServings !== baseServings;
   const scalingMultiplier = baseServings > 0 ? scaledServings / baseServings : 1;
@@ -138,6 +138,12 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
     const updated = { ...draft, updatedAt: new Date().toISOString() };
     onSave?.(updated);
     setIsEditing(false);
+    // If the servings text changed, reset the calculator to the new base value
+    const newBase = parseServings(draft.servings);
+    if (newBase !== null && newBase !== baseServings) {
+      setBaseServings(newBase);
+      setScaledServings(newBase);
+    }
   };
 
   // Ingredient helpers
