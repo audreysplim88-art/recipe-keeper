@@ -680,21 +680,28 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                 </button>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {display.tips.map((tip, i) => (
-                  <div
-                    key={i}
-                    className="bg-white/70 backdrop-blur border border-amber-200 rounded-xl p-4"
-                  >
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="text-base">{tipCategoryIcon[tip.category]}</span>
-                      <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-                        {tipCategoryLabel[tip.category]}
-                      </span>
-                    </div>
-                    <p className="text-stone-700 text-sm leading-relaxed">{tip.content}</p>
-                  </div>
-                ))}
+              <div className="space-y-5">
+                {(["tip", "trick", "secret", "note"] as Tip["category"][])
+                  .map((cat) => {
+                    const items = display.tips.filter((t) => t.category === cat);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={cat}>
+                        <h3 className="flex items-center gap-2 text-sm font-bold text-amber-800 uppercase tracking-wide mb-2">
+                          <span>{tipCategoryIcon[cat]}</span>
+                          {tipCategoryLabel[cat]}s
+                        </h3>
+                        <ul className="space-y-1.5 pl-1">
+                          {items.map((tip, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-stone-700 leading-relaxed">
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                              {tip.content}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
