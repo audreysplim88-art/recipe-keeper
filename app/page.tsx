@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getRecipes } from "@/lib/storage";
-import { Recipe, RecipeCategory, CATEGORY_META, CATEGORY_ORDER } from "@/lib/types";
+import { Recipe, RecipeCategory, CATEGORY_META, CATEGORY_ORDER, DIETARY_META } from "@/lib/types";
 
 export default function HomePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -181,15 +181,33 @@ function CategorySections({
 function RecipeListCard({ recipe }: { recipe: Recipe }) {
   const tipCount = recipe.tips?.length ?? 0;
   const meta = recipe.category ? CATEGORY_META[recipe.category] : null;
+  const dietaryTags = recipe.dietaryTags ?? [];
+  const allergenCount = recipe.allergens?.length ?? 0;
 
   return (
     <Link href={`/recipe/${recipe.id}`}>
       <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-5 hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group h-full flex flex-col">
-        {meta && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-0.5 mb-2 self-start">
-            {meta.emoji} {meta.label}
-          </span>
-        )}
+        {/* Category + dietary row */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          {meta ? (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-0.5">
+              {meta.emoji} {meta.label}
+            </span>
+          ) : <span />}
+          <div className="flex items-center gap-1 shrink-0">
+            {dietaryTags.slice(0, 3).map((tag) => (
+              <span key={tag} title={DIETARY_META[tag].label} className="text-sm leading-none">
+                {DIETARY_META[tag].emoji}
+              </span>
+            ))}
+            {allergenCount > 0 && (
+              <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 ml-0.5" title={`Contains ${allergenCount} allergen${allergenCount > 1 ? "s" : ""}`}>
+                ⚠️ {allergenCount}
+              </span>
+            )}
+          </div>
+        </div>
+
         <h2 className="font-serif font-bold text-stone-800 text-lg mb-1 group-hover:text-amber-700 transition-colors line-clamp-2">
           {recipe.title}
         </h2>

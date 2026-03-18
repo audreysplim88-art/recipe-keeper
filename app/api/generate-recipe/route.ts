@@ -10,6 +10,8 @@ You MUST return a valid JSON object with exactly this shape:
   "title": "string — a warm, descriptive recipe name",
   "description": "string — 1-2 sentences capturing the spirit of the dish",
   "category": "one of: starters | mains | desserts | sides | soups-salads | breakfast | snacks | drinks | sauces | other",
+  "dietaryTags": ["array of applicable tags from: vegan | vegetarian | gluten-free | dairy-free | nut-free — empty array if none apply"],
+  "allergens": ["array of present allergens from the EU/UK Big 14: gluten | crustaceans | eggs | fish | peanuts | soy | dairy | tree-nuts | celery | mustard | sesame | sulphites | lupin | molluscs — empty array if none"],
   "servings": "string — e.g. '4 servings' or '6-8 people'",
   "prepTime": "string — e.g. '20 minutes' or 'about half an hour'",
   "cookTime": "string — e.g. '45 minutes'",
@@ -37,6 +39,8 @@ CRITICAL RULES:
 - Separate the WHAT (instructions) from the WHY and HOW THEY KNOW (tips).
 - Make reasonable estimates for times and quantities if not stated explicitly.
 - Choose the most appropriate "category" based on the dish — use "other" only as a last resort.
+- For "dietaryTags": only include a tag if the recipe genuinely meets that standard (e.g. vegan means no animal products at all).
+- For "allergens": be thorough — scan every ingredient and include all relevant EU/UK Big 14 allergens present.
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
 const USER_MESSAGES: Record<string, (content: string) => string> = {

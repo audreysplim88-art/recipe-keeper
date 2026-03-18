@@ -1,6 +1,11 @@
 "use client";
 
-import { Recipe, Ingredient, Tip, RecipeCategory, CATEGORY_META, CATEGORY_ORDER } from "@/lib/types";
+import {
+  Recipe, Ingredient, Tip,
+  RecipeCategory, CATEGORY_META, CATEGORY_ORDER,
+  DietaryTag, DIETARY_META, DIETARY_ORDER,
+  AllergenTag, ALLERGEN_META, ALLERGEN_ORDER,
+} from "@/lib/types";
 import { useState, useMemo } from "react";
 
 interface RecipeCardProps {
@@ -348,6 +353,108 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
             </>
           )}
         </div>
+
+        {/* Dietary & allergen tags */}
+        {isEditing ? (
+          <div className="mt-5 space-y-3">
+            {/* Dietary toggles */}
+            <div>
+              <p className="text-amber-200 text-xs font-semibold uppercase tracking-wide mb-2">Dietary</p>
+              <div className="flex flex-wrap gap-2">
+                {DIETARY_ORDER.map((tag) => {
+                  const active = draft.dietaryTags?.includes(tag) ?? false;
+                  const { label, emoji } = DIETARY_META[tag];
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const current = draft.dietaryTags ?? [];
+                        setDraft({
+                          ...draft,
+                          dietaryTags: active
+                            ? current.filter((t) => t !== tag)
+                            : [...current, tag],
+                        });
+                      }}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        active
+                          ? "bg-green-600 border-green-500 text-white"
+                          : "bg-amber-800/40 border-amber-500/40 text-amber-200 hover:bg-amber-700/50"
+                      }`}
+                    >
+                      {emoji} {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Allergen toggles */}
+            <div>
+              <p className="text-amber-200 text-xs font-semibold uppercase tracking-wide mb-2">⚠️ Contains allergens</p>
+              <div className="flex flex-wrap gap-2">
+                {ALLERGEN_ORDER.map((tag) => {
+                  const active = draft.allergens?.includes(tag) ?? false;
+                  const { label, emoji } = ALLERGEN_META[tag];
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const current = draft.allergens ?? [];
+                        setDraft({
+                          ...draft,
+                          allergens: active
+                            ? current.filter((t) => t !== tag)
+                            : [...current, tag],
+                        });
+                      }}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        active
+                          ? "bg-amber-500 border-amber-400 text-white"
+                          : "bg-amber-800/40 border-amber-500/40 text-amber-200 hover:bg-amber-700/50"
+                      }`}
+                    >
+                      {emoji} {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Dietary badges */}
+            {(display.dietaryTags?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {display.dietaryTags!.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 text-xs font-semibold bg-green-600/80 text-white border border-green-400/50 rounded-full px-2.5 py-1"
+                  >
+                    {DIETARY_META[tag].emoji} {DIETARY_META[tag].label}
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Allergen warning */}
+            {(display.allergens?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <p className="text-amber-200 text-xs font-semibold uppercase tracking-wide mb-1.5">⚠️ Contains</p>
+                <div className="flex flex-wrap gap-2">
+                  {display.allergens!.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 text-xs font-medium bg-amber-500/70 text-white border border-amber-300/40 rounded-full px-2.5 py-1"
+                    >
+                      {ALLERGEN_META[tag].emoji} {ALLERGEN_META[tag].label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="bg-white rounded-b-2xl shadow-xl overflow-hidden">
