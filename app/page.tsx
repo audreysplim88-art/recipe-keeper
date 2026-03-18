@@ -308,15 +308,22 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
               {meta.emoji} {meta.label}
             </span>
           ) : <span />}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
             {dietaryTags.slice(0, 3).map((tag) => (
-              <span key={tag} title={DIETARY_META[tag].label} className="text-sm leading-none">
-                {DIETARY_META[tag].emoji}
+              <span
+                key={tag}
+                title={DIETARY_META[tag].label}
+                className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded border leading-none bg-green-50 text-green-700 border-green-200"
+              >
+                {DIETARY_META[tag].symbol}
               </span>
             ))}
             {allergenCount > 0 && (
-              <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 ml-0.5" title={`Contains ${allergenCount} allergen${allergenCount > 1 ? "s" : ""}`}>
-                ⚠️ {allergenCount}
+              <span
+                className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded border leading-none bg-amber-50 text-amber-700 border-amber-200"
+                title={`Contains ${allergenCount} allergen${allergenCount > 1 ? "s" : ""}`}
+              >
+                ⚠ {allergenCount}
               </span>
             )}
           </div>

@@ -32,12 +32,12 @@ export const CATEGORY_ORDER: RecipeCategory[] = [
 
 export type DietaryTag = "vegan" | "vegetarian" | "gluten-free" | "dairy-free" | "nut-free";
 
-export const DIETARY_META: Record<DietaryTag, { label: string; emoji: string }> = {
-  vegan:        { label: "Vegan",        emoji: "🌱" },
-  vegetarian:   { label: "Vegetarian",   emoji: "🥗" },
-  "gluten-free":{ label: "Gluten-free",  emoji: "🌾" },
-  "dairy-free": { label: "Dairy-free",   emoji: "🥛" },
-  "nut-free":   { label: "Nut-free",     emoji: "🥜" },
+export const DIETARY_META: Record<DietaryTag, { label: string; emoji: string; symbol: string }> = {
+  vegan:         { label: "Vegan",        emoji: "🌱", symbol: "VE" },
+  vegetarian:    { label: "Vegetarian",   emoji: "🥗", symbol: "V"  },
+  "gluten-free": { label: "Gluten-free",  emoji: "🌾", symbol: "GF" },
+  "dairy-free":  { label: "Dairy-free",   emoji: "🥛", symbol: "DF" },
+  "nut-free":    { label: "Nut-free",     emoji: "🥜", symbol: "NF" },
 };
 
 export const DIETARY_ORDER: DietaryTag[] = [
