@@ -96,8 +96,21 @@ Tests the streaming SSE API route that powers the sous chef conversation.
 
 ---
 
-### `components/CookingVoiceInput` — (added Step 4)
-*See Step 4 commit.*
+### `components/CookingVoiceInput` — 16 tests ✅
+Tests the conversational voice input component used during cooking sessions.
+
+| Test group | What is covered |
+|---|---|
+| `rendering` | Voice UI when SpeechRecognition available; fallback text input when unavailable; "Listening"/"Speaking"/"Waiting…" labels reflect state |
+| `recognition lifecycle` | Starts on `isActive=true`; does not start on `isActive=false`; aborts on deactivation; respects `disabled` prop |
+| `speech events` | `onSpeechStart` fires once on first result; auto-sends trimmed transcript after 2 s silence; resets timer on new speech; ignores empty utterances |
+| `fallback text input` | Submit sends text and clears field; empty submit is no-op; disabled prop disables input |
+
+**Key mocks:** `window.SpeechRecognition` / `window.webkitSpeechRecognition` — `MockSpeechRecognition` class with jest.fn() `start`/`abort`/`stop`. Uses `jest.useFakeTimers()` to control the 2 s silence timer.
+
+**Notes:**
+- Mock properties need `configurable: true` in `Object.defineProperty` so tests can reassign them to `undefined` for fallback scenarios
+- `sendAndClear` trims the accumulated transcript before calling `onSend`
 
 ---
 
