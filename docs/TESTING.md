@@ -114,8 +114,20 @@ Tests the conversational voice input component used during cooking sessions.
 
 ---
 
-### `components/SousChefSession` — (added Step 5)
-*See Step 5 commit.*
+### `components/SousChefSession` — 12 tests ✅
+Integration-style tests for the full sous chef session component.
+
+| Test group | What is covered |
+|---|---|
+| `rendering` | Recipe title in top bar; "Getting ready" before first step; CookingVoiceInput present; assistant response in log; streaming indicator while loading |
+| `exit button` | `onExit` called on click |
+| `TTS integration` | `appendText` per chunk; `flush` on `[DONE]`; listening enabled after `onSpeakingChange(false)`; `destroy` on unmount |
+| `error handling` | Error message rendered when API call fails |
+| `step detection` | Step counter updates when assistant mentions "step 2" |
+
+**Key mocks:** `@/lib/tts` TTSManager (captures `onSpeakingChange`); `global.fetch` via direct assignment with custom `getReader()`/`read()` stub (no ReadableStream constructor needed); `navigator.mediaDevices.getUserMedia`.
+
+**Note:** `TextEncoder` imported from Node's `util` module in the test file.
 
 ---
 
@@ -134,7 +146,7 @@ Tests the conversational voice input component used during cooking sessions.
 ### Mocking strategy
 - **Browser APIs** (`speechSynthesis`, `SpeechRecognition`, `localStorage`) — mocked at the module level in each test file
 - **Anthropic SDK** — mocked with `jest.mock('@anthropic-ai/sdk')` in API route tests
-- **`fetch`** — mocked with `jest.spyOn(global, 'fetch')` in component tests that call API routes
+- **`fetch`** — mocked via `global.fetch = jest.fn()` in component tests that call API routes (direct assignment avoids spyOn requirement for the property to pre-exist)
 
 ### Guiding principle
 Tests should break when behaviour changes, not when implementation changes. Prefer testing what the user experiences over testing internal state.
