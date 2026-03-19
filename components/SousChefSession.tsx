@@ -61,6 +61,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showMobileSteps, setShowMobileSteps] = useState(false);
 
   const ttsRef = useRef<TTSManager | null>(null);
   const micPermissionRef = useRef(false);
@@ -307,16 +308,79 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
             {recipe.title}
           </p>
         </div>
-        <div className="text-sm text-gray-400">
-          {currentStep > 0 ? (
-            <span aria-label={`Step ${currentStep} of ${totalSteps}`}>
-              Step {currentStep} / {totalSteps}
-            </span>
-          ) : (
-            <span className="text-amber-400">Getting ready</span>
-          )}
+        <div className="flex items-center gap-2">
+          {/* Steps toggle — mobile only */}
+          <button
+            onClick={() => setShowMobileSteps((v) => !v)}
+            className="lg:hidden p-2 -m-2 text-gray-400 hover:text-white transition-colors text-sm font-medium"
+            style={{ minWidth: 44, minHeight: 44 }}
+            aria-label={showMobileSteps ? "Close steps" : "Show recipe steps"}
+          >
+            Steps
+          </button>
+          <div className="text-sm text-gray-400">
+            {currentStep > 0 ? (
+              <span aria-label={`Step ${currentStep} of ${totalSteps}`}>
+                Step {currentStep} / {totalSteps}
+              </span>
+            ) : (
+              <span className="text-amber-400">Getting ready</span>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* ── Mobile steps overlay ── */}
+      {showMobileSteps && (
+        <div
+          className="lg:hidden fixed inset-0 z-10 bg-gray-950/90"
+          style={{ top: "calc(3.5rem + env(safe-area-inset-top))" }}
+          onClick={() => setShowMobileSteps(false)}
+          role="dialog"
+          aria-label="Recipe steps"
+        >
+          <div
+            className="bg-gray-900 border-b border-gray-800 p-4 overflow-y-auto max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+              Recipe Steps
+            </p>
+            <ol className="space-y-2">
+              {recipe.instructions.map((step, i) => {
+                const stepNum = i + 1;
+                const isDone = stepNum < currentStep;
+                const isCurrent = stepNum === currentStep;
+                return (
+                  <li
+                    key={i}
+                    className={`flex gap-2.5 text-sm leading-relaxed ${
+                      isDone
+                        ? "text-gray-600 line-through"
+                        : isCurrent
+                        ? "text-amber-300 font-semibold"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isDone
+                          ? "bg-gray-700 text-gray-500"
+                          : isCurrent
+                          ? "bg-amber-500 text-white"
+                          : "bg-gray-800 text-gray-500"
+                      }`}
+                    >
+                      {isDone ? "✓" : stepNum}
+                    </span>
+                    {step}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </div>
+      )}
 
       {/* ── Main body ── */}
       <div className="flex flex-1 overflow-hidden">

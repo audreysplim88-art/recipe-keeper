@@ -334,6 +334,51 @@ describe("step detection", () => {
   });
 });
 
+// ─── Mobile steps drawer ─────────────────────────────────────────────────────
+
+describe("mobile steps drawer", () => {
+  it("'Steps' button is present in the top bar after session starts", async () => {
+    mockFetchSuccess(["Ready!"]);
+    render(<SousChefSession recipe={makeRecipe()} onExit={jest.fn()} />);
+
+    await startSession();
+    await waitFor(() => expect(screen.getByText("Ready!")).toBeInTheDocument());
+
+    expect(screen.getByRole("button", { name: /show recipe steps/i })).toBeInTheDocument();
+  });
+
+  it("opens the steps overlay when 'Steps' button is clicked", async () => {
+    mockFetchSuccess(["Ready!"]);
+    render(<SousChefSession recipe={makeRecipe()} onExit={jest.fn()} />);
+
+    await startSession();
+    await waitFor(() => expect(screen.getByText("Ready!")).toBeInTheDocument());
+
+    const stepsBtn = screen.getByRole("button", { name: /show recipe steps/i });
+    await userEvent.click(stepsBtn);
+
+    // Overlay should show the steps (scoped within the dialog to avoid collision
+    // with the desktop sidebar, which also renders in jsdom regardless of CSS)
+    const dialog = screen.getByRole("dialog", { name: /recipe steps/i });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Crack the eggs.");
+  });
+
+  it("closes the steps overlay when 'Steps' button is clicked again", async () => {
+    mockFetchSuccess(["Ready!"]);
+    render(<SousChefSession recipe={makeRecipe()} onExit={jest.fn()} />);
+
+    await startSession();
+    await waitFor(() => expect(screen.getByText("Ready!")).toBeInTheDocument());
+
+    const stepsBtn = screen.getByRole("button", { name: /show recipe steps/i });
+    await userEvent.click(stepsBtn);
+    await userEvent.click(screen.getByRole("button", { name: /close steps/i }));
+
+    expect(screen.queryByRole("dialog", { name: /recipe steps/i })).not.toBeInTheDocument();
+  });
+});
+
 // ─── Wake phrase detection ────────────────────────────────────────────────────
 
 describe("wake phrase detection (isWakePhrase)", () => {
