@@ -42,6 +42,10 @@ These are not developer preferences — they are product quality standards.
 4. **Session start is confusing.** The AI speaks immediately when the cook page loads, before the user is oriented. The mic activates right after, creating confusion between AI output and user input.
 5. **The UI is desktop-first.** Phones and tablets are the most likely kitchen devices, but safe areas, touch targets and the recipe step view are all designed for large screens.
 
+### v3 problems (identified — next iteration)
+6. **Session start feels sluggish.** Saying "Hello Chef" takes 1–3 seconds before the session begins. The Web Speech API only fires wake phrase detection on *final* transcription results, which arrive in batches. Cooking is an active context — a perceptible delay here breaks the "just talk to it" promise.
+7. **AI responses are sometimes too slow for a kitchen context.** Latency between the user's question and the first spoken word can reach 3–4 seconds. When something is on the heat and a question is urgent, this breaks the flow. The delay compounds: network round-trip + model inference time + TTS sentence-assembly (speaking only begins when a full sentence is ready).
+
 ---
 
 ## 4. Target User
@@ -117,7 +121,11 @@ Phones and tablets are the primary cooking devices. The sous chef UI must be fir
 | Requirement | Target |
 |---|---|
 | Voice narration session length | 30–40 min via Web Speech API auto-restart |
-| Sous chef response latency | First spoken word within ~2s of user finishing |
+| Sous chef response latency (current v2) | First spoken word within ~2s of user finishing |
+| Sous chef response latency (Phase 3 target) | First spoken word within 1.5s (95th percentile, good network) |
+| Wake phrase → session start (current v2) | ~1–3s (limited by Web Speech API final-result batching) |
+| Wake phrase → session start (Phase 3 target) | <500ms from when the phrase is spoken |
+| TTS first audio (Phase 3 target) | <1s from API first token (requires lower sentence-assembly threshold) |
 | Touch target minimum | 44×44px (iOS HIG) |
 | Mobile browser support | iOS Safari 15+, Chrome Android |
 | Safe area compliance | iPhone notch + home bar |
@@ -156,7 +164,17 @@ Although multi-user, multi-device, and noisy-environment support are out of scop
 
 ---
 
-## 9. Forward Roadmap (Phase 6 — Multi-User & Accessibility)
+## 9. Forward Roadmap
+
+### Phase 3 — Performance Optimisation (priority items)
+
+> Identified from real use. These should be addressed before new session features are added.
+
+- **Wake phrase interim detection (PERF-001):** Run the wake phrase regex against *interim* Web Speech API results (not just final), so `handleBegin()` fires the moment the phrase is recognisable — targeting <500ms from spoken word. The single `handleBegin()` integration point makes this a low-risk change and keeps the path clear for Porcupine replacement.
+- **AI response latency (PERF-002):** Two parallel improvements — (1) move `/api/sous-chef` to Next.js Edge Runtime to eliminate cold-start overhead; (2) lower the TTS sentence-assembly threshold so the first clause or phrase is spoken immediately rather than waiting for a full-sentence boundary. Add an immediate "thinking" audio/visual cue when the mic deactivates so silence feels intentional.
+- **Longer-term:** Evaluate streamed TTS APIs (ElevenLabs, OpenAI TTS) that synthesise audio in parallel with Claude streaming, and a two-tier model approach routing simple confirmations to a faster model.
+
+### Phase 6 — Multi-User & Accessibility
 
 > Planned, not in scope for v2. Documented here to inform architecture decisions.
 

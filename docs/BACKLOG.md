@@ -118,7 +118,36 @@ Before marking any ticket complete:
 
 ---
 
-## Phase 3 — Cooking Session Enhancements
+## Phase 3 — Performance & Cooking Session Enhancements
+
+> Performance tickets (PERF-001, PERF-002) are highest priority. Latency issues identified from real use should be resolved before new session features are added.
+
+### PERF-001 · Wake Phrase Response Time
+**Status:** 🔲 Backlog
+**Files:** `components/CookingVoiceInput.tsx`, `components/SousChefSession.tsx`
+**Description:** Saying "Hello Chef" currently takes 1–3 seconds to trigger the session start. Root cause: `CookingVoiceInput` only calls `onSend` on *final* Web Speech API results, which arrive in batches. The wake phrase regex in `SousChefSession` therefore doesn't run until the full utterance is finalised. Fix: pass interim results to a lightweight wake phrase check and call `handleBegin()` the moment the phrase is recognisable — without waiting for the final result.
+**Acceptance criteria:**
+- Session begins within 500ms of the wake phrase being spoken (measured from start of phrase to session state change)
+- False positive rate is negligible — only confident interim matches trigger (phrase is ≥2 words and matches pattern)
+- `handleBegin()` remains the single integration point (future Porcupine/Whisper replacement is not affected)
+- Updated tests in `__tests__/components/SousChefSession.test.tsx` and `__tests__/components/CookingVoiceInput.test.tsx` pass
+- **Future-proofing:** This is a short-term fix. MU-003 (native wake word via Porcupine) is the long-term solution and will replace this entirely via `handleBegin()`.
+
+---
+
+### PERF-002 · AI Response Latency
+**Status:** 🔲 Backlog
+**Files:** `app/api/sous-chef/route.ts`, `lib/tts.ts`, `components/SousChefSession.tsx`
+**Description:** Variable latency (up to 3–4s before first spoken word) breaks the cooking flow when something is on the heat. Three optimisations in priority order: (1) an immediate "thinking" cue fires the moment the mic deactivates so silence feels intentional; (2) move `/api/sous-chef` to Next.js Edge Runtime to eliminate cold-start overhead on serverless functions; (3) lower `TTSManager`'s sentence-assembly threshold so speech begins on the first complete clause, not only on a full-sentence boundary.
+**Acceptance criteria:**
+- Immediate visual or audio feedback (e.g. pulsing mic indicator) fires within 100ms of the user stopping speaking
+- `/api/sous-chef` runs on Edge Runtime (`export const runtime = 'edge'`); SSE streaming verified working
+- `TTSManager` begins speaking on the first phrase ≥3 words that ends with a comma, colon, or sentence-ending punctuation — not only full stops
+- First spoken word from AI within 1.5s of user finishing (95th percentile, good network conditions)
+- All existing tests pass; new behaviour covered in `__tests__/lib/tts.test.ts`
+- **Longer-term:** Evaluate streamed TTS APIs (ElevenLabs, OpenAI TTS) that synthesise audio in parallel with Claude token streaming. Evaluate routing short confirmations to a faster/cheaper model tier.
+
+---
 
 ### CE-001 · Cooking Timers
 **Status:** 🔲 Backlog

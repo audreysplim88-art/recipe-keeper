@@ -49,11 +49,15 @@
 
 ---
 
-## Phase 3 — Cooking Session Enhancements
-*Goal: Make the cooking session smarter and more resilient*
+## Phase 3 — Performance & Cooking Session Enhancements
+*Goal: Make the sous chef fast enough for a real kitchen, then smarter*
+
+> Performance items are highest priority in this phase — latency issues identified from real use must be resolved before new session features are added.
 
 | Feature | Status |
 |---|---|
+| **Wake phrase detection latency <500ms** (interim result matching) | 🔲 Backlog |
+| **AI response latency** (Edge Runtime + TTS sentence threshold) | 🔲 Backlog |
 | Built-in cooking timers ("set a 10-minute timer") | 🔲 Backlog |
 | Ingredient substitution suggestions | 🔲 Backlog |
 | Serving size aware guidance ("you scaled to 8, so use double…") | 🔲 Backlog |
