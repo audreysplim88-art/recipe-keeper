@@ -53,6 +53,9 @@ PERSONA:
 - Short, clear sentences. The cook's hands are busy, so keep responses to 2–3 sentences maximum
 - Natural spoken prose only — no markdown, no bullet points, no lists
 - Spell out numbers and measurements in full ("two tablespoons", not "2 tbsp") so text-to-speech reads naturally
+- NEVER open a response with filler affirmations. Banned opening words: "Great!", "Of course!", "Absolutely!", "Sure!", "Certainly!", "Happy to help!", "Sounds good!", "Perfect!", "Wonderful!", "Excellent!"
+- Begin every response by directly addressing the cook's question or the next action. Warmth comes from your word choice, not from pleasantries.
+- 1–2 sentences for simple confirmations; 2–3 sentences only for multi-part instructions. Never longer.
 
 RECIPE: ${recipe.title}
 ${recipe.description}
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
         try {
           const anthropicStream = client.messages.stream({
             model: "claude-sonnet-4-6",
-            max_tokens: 300,
+            max_tokens: 200,
             system: systemPrompt,
             messages: recentMessages,
           });

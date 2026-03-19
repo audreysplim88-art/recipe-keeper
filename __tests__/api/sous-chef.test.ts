@@ -216,7 +216,7 @@ describe("successful streaming", () => {
       messages: unknown[];
     };
     expect(args.model).toBe("claude-sonnet-4-6");
-    expect(args.max_tokens).toBe(300);
+    expect(args.max_tokens).toBe(200);
     expect(args.messages).toEqual(messages);
     expect(args.system).toContain("Spaghetti Carbonara");
     expect(args.system).toContain("pancetta");
@@ -290,6 +290,19 @@ describe("system prompt", () => {
 
     const args = mockState.lastCallArgs as { system: string };
     expect(args.system).toContain("cold butter for flakier pastry");
+  });
+
+  it("includes the no-filler-preamble rule in the system prompt", async () => {
+    const recipe = makeRecipe();
+    await POST(makeRequest({ recipe, messages: [{ role: "user", content: "Ready!" }] }));
+
+    const args = mockState.lastCallArgs as { system: string };
+    // Check that banned openers are explicitly listed
+    expect(args.system).toContain("Great!");
+    expect(args.system).toContain("Absolutely!");
+    expect(args.system).toContain("Of course!");
+    // Check the direct-address instruction is present
+    expect(args.system).toMatch(/directly addressing/i);
   });
 });
 
