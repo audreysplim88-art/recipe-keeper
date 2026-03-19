@@ -8,6 +8,7 @@ import {
 } from "@/lib/types";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -124,6 +125,9 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
   const [scaledServings, setScaledServings] = useState<number>(originalServings ?? DEFAULT_SERVINGS);
   const isScaled = scaledServings !== baseServings;
   const scalingMultiplier = baseServings > 0 ? scaledServings / baseServings : 1;
+
+  // Warn on browser-level navigation (refresh, close, back) while editing
+  useUnsavedChangesWarning(isEditing);
 
   const adjustServings = (delta: number) => {
     setScaledServings((prev) => Math.max(1, prev + delta));

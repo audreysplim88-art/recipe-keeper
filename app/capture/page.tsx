@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import VoiceCapture from "@/components/VoiceCapture";
 import { saveRecipe, generateId } from "@/lib/storage";
 import { Recipe, RecipeGenerationResult } from "@/lib/types";
+import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
 
 const BACKUP_KEY = "capture-backup";
 const BACKUP_INTERVAL_MS = 30_000; // auto-save every 30 s of inactivity
@@ -48,16 +49,12 @@ export default function CapturePage() {
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
   const lastBackupTimeRef = useRef<number>(0);
 
-  // Warn on browser refresh / tab close when a recipe is unsaved
-  useEffect(() => {
-    if (stage !== "preview") return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = UNSAVED_WARNING;
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [stage]);
+  // Warn on browser refresh / tab close whenever there is unsaved content:
+  // - capture stage: user has typed/narrated content but not yet generated
+  // - preview stage: recipe was generated but not yet saved
+  const hasCaptureContent = (inputMode === "narrate" || inputMode === "paste")
+    && transcript.trim().length >= 20;
+  useUnsavedChangesWarning(hasCaptureContent || stage === "preview");
 
   // Check for backup on mount
   useEffect(() => {
@@ -90,13 +87,14 @@ export default function CapturePage() {
     }
   }, [transcript, inputMode]);
 
-  // Guard for in-app navigation away from an unsaved preview
+  // Guard for in-app navigation when there is unsaved content
   const safeNavigate = useCallback((destination: string) => {
-    if (stage === "preview") {
+    const hasUnsaved = hasCaptureContent || stage === "preview";
+    if (hasUnsaved) {
       if (!window.confirm(UNSAVED_WARNING)) return;
     }
     router.push(destination);
-  }, [stage, router]);
+  }, [hasCaptureContent, stage, router]);
 
   const handleNavBack = () => safeNavigate("/");
 

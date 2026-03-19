@@ -1,7 +1,7 @@
 # Backlog
 ## Recipe Keeper — Task Tickets
 
-**Last updated:** 2026-03-18
+**Last updated:** 2026-03-19
 Tickets are grouped by phase. Within each phase, ordered by priority (highest first).
 
 ---
@@ -14,6 +14,7 @@ Before marking any ticket complete:
 - [ ] `npm test` passes (all green)
 - [ ] Changes committed to git with a descriptive message
 - [ ] `docs/TESTING.md` updated if new test files were added
+- [ ] **Data loss check:** If the ticket touches any page or component where a user creates or edits data, verify that `useUnsavedChangesWarning(isDirty)` is active for the relevant dirty state. Both browser-level navigation (refresh, tab close) and in-app navigation must be guarded.
 
 ---
 

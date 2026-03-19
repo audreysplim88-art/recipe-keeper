@@ -13,6 +13,7 @@
 |---|---|
 | **Git commit every step** | Each completed step is committed to git with a descriptive message. Enables clean rollbacks. |
 | **Tests before every commit** | `npm test` must pass before any commit. New features require new tests. No regressions allowed. |
+| **Data loss prevention** | Every page with unsaved user input must use `useUnsavedChangesWarning(isDirty)`. Covers both browser-level (refresh/close) and in-app navigation. Required for: narration, paste input, recipe editing, and any future form. |
 
 ---
 

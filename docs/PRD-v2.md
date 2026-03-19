@@ -25,6 +25,7 @@ These are permanent, non-negotiable project practices that apply to every featur
 | **Git commit at every step** | Every completed implementation step is committed to git with a descriptive message. This enables clean rollbacks if something goes wrong and keeps history readable. |
 | **Tests before every commit** | `npm test` must pass (all tests green) before any commit is made. New features require new tests. Existing tests must not regress. |
 | **Test documentation** | `docs/TESTING.md` is updated at each iteration with new coverage descriptions. |
+| **Data loss prevention** | Any page or component where unsaved user data could be lost on navigation MUST use `useUnsavedChangesWarning(isDirty)` from `lib/useUnsavedChangesWarning.ts`. Applies to: voice narration in progress, paste/text input before generating, recipe edit mode, and any future form where work is not auto-saved. Both browser-level navigation (refresh, tab close) and in-app navigation (router push, links) must be guarded. No user data is stored server-side; the warning is the only safety net beyond sessionStorage backup. |
 
 These are not developer preferences — they are product quality standards.
 
