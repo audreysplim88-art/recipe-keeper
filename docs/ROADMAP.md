@@ -5,24 +5,50 @@
 
 ---
 
-## Phase 1 — AI Sous Chef (Current)
+## Engineering Standards (always-on)
+
+> These apply to every phase and every ticket — not a phase themselves.
+
+| Standard | Rule |
+|---|---|
+| **Git commit every step** | Each completed step is committed to git with a descriptive message. Enables clean rollbacks. |
+| **Tests before every commit** | `npm test` must pass before any commit. New features require new tests. No regressions allowed. |
+
+---
+
+## Phase 1 — AI Sous Chef ✅ Shipped
 *Goal: Turn the recipe box into a real-time cooking companion*
 
 | Feature | Status |
 |---|---|
-| Dedicated cooking session page (`/cook/[id]`) | 🔲 Planned |
-| Streaming conversational Claude API (`/api/sous-chef`) | 🔲 Planned |
-| TTS output via Web Speech Synthesis | 🔲 Planned |
-| Conversational voice input (auto-send on silence) | 🔲 Planned |
-| Step-by-step guidance with progress tracking | 🔲 Planned |
-| Proactive tip/secret surfacing at the right moment | 🔲 Planned |
-| Text input fallback (non-Chrome browsers) | 🔲 Planned |
-| "Start Cooking" button on recipe card | 🔲 Planned |
-| sessionStorage backup for long capture sessions | 🔲 Planned |
+| Dedicated cooking session page (`/cook/[id]`) | ✅ Shipped |
+| Streaming conversational Claude API (`/api/sous-chef`) | ✅ Shipped |
+| TTS output via Web Speech Synthesis | ✅ Shipped |
+| Conversational voice input (auto-send on silence) | ✅ Shipped |
+| Step-by-step guidance with progress tracking | ✅ Shipped |
+| Proactive tip/secret surfacing at the right moment | ✅ Shipped |
+| Text input fallback (non-Chrome browsers) | ✅ Shipped |
+| "Start Cooking" button on recipe card | ✅ Shipped |
+| sessionStorage backup for long capture sessions | ✅ Shipped |
+| Jest test suite (75 tests across lib, API, components) | ✅ Shipped |
 
 ---
 
-## Phase 2 — Cooking Session Enhancements
+## Phase 2 — Voice Quality & Mobile (Current)
+*Goal: Make the sous chef feel natural and work first-class on kitchen devices*
+
+| Feature | Status |
+|---|---|
+| Natural TTS voice — no filler words, direct and warm responses | 🔄 In Progress |
+| User-initiated session start ("Hello Chef" wake phrase + button) | 🔄 In Progress |
+| iOS safe area insets (notch + home indicator support) | 🔄 In Progress |
+| Mobile recipe steps drawer (toggle overlay on small screens) | 🔄 In Progress |
+| Touch target sizing ≥44px (iOS Human Interface Guidelines) | 🔄 In Progress |
+| `viewport-fit=cover` for full-screen cooking UI on iPhone | 🔄 In Progress |
+
+---
+
+## Phase 3 — Cooking Session Enhancements
 *Goal: Make the cooking session smarter and more resilient*
 
 | Feature | Status |
@@ -36,7 +62,7 @@
 
 ---
 
-## Phase 3 — Recipe Intelligence
+## Phase 4 — Recipe Intelligence
 *Goal: Make the recipe box smarter over time*
 
 | Feature | Status |
@@ -50,7 +76,7 @@
 
 ---
 
-## Phase 4 — Sharing & Portability
+## Phase 5 — Sharing & Portability
 *Goal: Get recipes out of the browser*
 
 | Feature | Status |
@@ -63,15 +89,33 @@
 
 ---
 
-## Phase 5 — Platform Expansion
-*Goal: Reach users wherever they cook*
+## Phase 6 — Multi-User, Noise Resilience & Accessibility
+*Goal: Support real kitchen environments — families, couples, noisy spaces*
+
+> Architecture decisions in Phases 1–2 are intentionally forward-compatible with this phase. Wake-phrase detection is isolated to a single replaceable function. The voice input interface (`onSend`, `onSpeechStart`) is a clean abstraction over Web Speech API. The API is stateless and recipe-scoped. See PRD-v2.md §7.
 
 | Feature | Status |
 |---|---|
+| Multi-person cooking sessions (couples, families, friends) | 🔲 Backlog |
+| Noise-robust STT (Whisper API / Deepgram evaluation spike) | 🔲 Backlog |
+| Native wake word ("Hey Chef") via Porcupine or equivalent | 🔲 Backlog |
+| Haptic feedback as complement to voice in loud kitchens | 🔲 Backlog |
+| Accessibility: screen reader support, high-contrast mode | 🔲 Backlog |
+| Larger text / display mode for cooking UI | 🔲 Backlog |
+| Multi-language TTS and STT | 🔲 Backlog |
 | Progressive Web App (installable, home screen icon) | 🔲 Backlog |
-| Mobile-optimised cooking UI | 🔲 Backlog |
-| Multi-language recipe capture and sous chef | 🔲 Backlog |
-| Voice wake word ("Hey Chef") | 🔲 Backlog |
+
+---
+
+## Phase 7 — Accounts & Sync
+*Goal: Recipes survive across browsers and devices*
+
+| Feature | Status |
+|---|---|
+| User accounts (sign-up / login) | 🔲 Backlog |
+| Cloud recipe storage (e.g. Supabase) | 🔲 Backlog |
+| Cross-device sync | 🔲 Backlog |
+| Shared recipe collections (family recipe box) | 🔲 Backlog |
 
 ---
 
