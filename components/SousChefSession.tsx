@@ -12,11 +12,22 @@ export interface ConversationMessage {
   content: string;
 }
 
-type SessionPhase = "initializing" | "cooking" | "complete" | "error";
+type SessionPhase = "waiting" | "initializing" | "cooking" | "complete" | "error";
 
 interface SousChefSessionProps {
   recipe: Recipe;
   onExit: () => void;
+}
+
+// ─── Wake phrase detection ─────────────────────────────────────────────────────
+// Isolated in a single function so it can be swapped for a noise-robust
+// library (e.g. Porcupine, Whisper) without touching the session UI.
+
+const WAKE_PHRASE_PATTERN =
+  /hello\s*chef|hey\s*chef|hi\s*chef|start|begin|let'?s\s*(go|cook|start)|ready/i;
+
+function isWakePhrase(text: string): boolean {
+  return WAKE_PHRASE_PATTERN.test(text.trim());
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,7 +54,7 @@ function detectCurrentStep(text: string, totalSteps: number, current: number): n
 
 export default function SousChefSession({ recipe, onExit }: SousChefSessionProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [phase, setPhase] = useState<SessionPhase>("initializing");
+  const [phase, setPhase] = useState<SessionPhase>("waiting");
   const [currentStep, setCurrentStep] = useState(0);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -52,7 +63,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
   const [errorMessage, setErrorMessage] = useState("");
 
   const ttsRef = useRef<TTSManager | null>(null);
-  const sessionStartedRef = useRef(false);
+  const micPermissionRef = useRef(false);
 
   const totalSteps = recipe.instructions.length;
 
@@ -72,6 +83,22 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
       tts.destroy();
       ttsRef.current = null;
     };
+  }, []);
+
+  // ─── Request mic permission on mount (no conversation yet) ──────────────────
+
+  useEffect(() => {
+    if (micPermissionRef.current) return;
+    micPermissionRef.current = true;
+
+    if (typeof navigator !== "undefined" && navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {
+        // Permission denied — fall back to text input; no-op here
+      });
+    }
+
+    // Mic is active during waiting (for wake phrase detection)
+    setIsListening(true);
   }, []);
 
   // ─── Send a message to the sous chef API ────────────────────────────────────
@@ -159,36 +186,41 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
     [recipe, totalSteps, currentStep]
   );
 
-  // ─── Start session on mount ──────────────────────────────────────────────────
+  // ─── Begin session (called by wake phrase or button) ────────────────────────
+  // Isolated here so it can be replaced with a noise-robust wake-word library
+  // (e.g. Porcupine) without touching the session UI or TTS layer.
 
-  useEffect(() => {
-    if (sessionStartedRef.current) return;
-    sessionStartedRef.current = true;
-
-    // Request mic permission early, then start conversation
-    if (typeof navigator !== "undefined" && navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {
-        // Permission denied — we'll fall back to text input; no-op here
-      });
-    }
-
-    sendMessage("Hello! I'm ready to start cooking.", []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleBegin = useCallback(
+    (triggerText: string) => {
+      setPhase("initializing");
+      sendMessage(triggerText, []);
+    },
+    [sendMessage]
+  );
 
   // ─── Handle user speech ──────────────────────────────────────────────────────
 
   const handleSend = useCallback(
     (text: string) => {
+      if (phase === "waiting") {
+        // Only respond to wake phrases during the waiting phase
+        if (isWakePhrase(text)) {
+          handleBegin(text);
+        }
+        // Non-matching speech is silently ignored
+        return;
+      }
       sendMessage(text, messages);
     },
-    [sendMessage, messages]
+    [phase, handleBegin, sendMessage, messages]
   );
 
   const handleSpeechStart = useCallback(() => {
-    ttsRef.current?.interrupt();
+    if (phase !== "waiting") {
+      ttsRef.current?.interrupt();
+    }
     setIsListening(true);
-  }, []);
+  }, [phase]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -200,13 +232,72 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
   // Last few conversation messages for the log
   const recentMessages = messages.slice(-6);
 
+  // ── Waiting screen ──────────────────────────────────────────────────────────
+  if (phase === "waiting") {
+    return (
+      <div className="fixed inset-0 bg-gray-950 text-white flex flex-col items-center justify-center gap-8 px-6">
+        {/* Exit */}
+        <button
+          onClick={onExit}
+          className="absolute top-4 left-4 p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          style={{ minWidth: 44, minHeight: 44 }}
+          aria-label="Exit cooking session"
+        >
+          ← Exit
+        </button>
+
+        {/* Prompt */}
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span className="text-6xl">👨‍🍳</span>
+          <h1 className="text-2xl font-bold text-white">Ready to cook?</h1>
+          <p className="text-lg text-amber-300 font-semibold">{recipe.title}</p>
+          <p className="text-gray-400 text-sm mt-1">
+            Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
+            or tap the button below
+          </p>
+        </div>
+
+        {/* CTA button */}
+        <button
+          onClick={() => handleBegin("Hello Chef, let's start cooking!")}
+          className="flex items-center gap-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold text-lg px-8 py-4 rounded-2xl transition-colors shadow-lg"
+          style={{ minWidth: 44, minHeight: 44 }}
+        >
+          <span>👨‍🍳</span>
+          Start Cooking
+        </button>
+
+        {/* Mic listening indicator */}
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          Listening for wake phrase…
+        </div>
+
+        {/* Voice input active during waiting for wake phrase detection */}
+        <div className="sr-only">
+          <CookingVoiceInput
+            isActive={isListening}
+            onSend={handleSend}
+            onSpeechStart={handleSpeechStart}
+            disabled={false}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Cooking session layout ──────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-gray-950 text-white flex flex-col overflow-hidden">
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
+      <div
+        className="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800 shrink-0"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
         <button
           onClick={onExit}
-          className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          className="p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          style={{ minWidth: 44, minHeight: 44 }}
           aria-label="Exit cooking session"
         >
           ← Exit
@@ -337,7 +428,10 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
       </div>
 
       {/* ── Bottom mic area ── */}
-      <div className="shrink-0 px-4 pb-6 pt-3 bg-gray-900 border-t border-gray-800 flex flex-col items-center gap-3">
+      <div
+        className="shrink-0 px-4 pt-3 bg-gray-900 border-t border-gray-800 flex flex-col items-center gap-3"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+      >
         <CookingVoiceInput
           isActive={isListening && !isLoading}
           onSend={handleSend}
