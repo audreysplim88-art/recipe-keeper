@@ -31,6 +31,7 @@ const mockTTS = {
   appendText: jest.fn(),
   flush: jest.fn(),
   interrupt: jest.fn(),
+  prime: jest.fn(),
   setupVisibilityWorkaround: jest.fn(),
   destroy: jest.fn(),
   isAvailable: true,
