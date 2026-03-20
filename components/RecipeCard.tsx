@@ -195,8 +195,8 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="bg-amber-700 text-white rounded-t-2xl p-8">
-        <div className="flex justify-between items-start gap-4">
+      <div className="bg-amber-700 text-white rounded-t-2xl p-5 sm:p-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:gap-4">
           <div className="flex-1 min-w-0">
             {isEditing ? (
               <div className="space-y-2">
@@ -233,14 +233,14 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                     {CATEGORY_META[display.category].emoji} {CATEGORY_META[display.category].label}
                   </span>
                 )}
-                <h1 className="text-3xl font-bold mb-2 font-serif">{display.title}</h1>
-                <p className="text-amber-100 text-lg leading-relaxed">{display.description}</p>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 font-serif">{display.title}</h1>
+                <p className="text-amber-100 text-base sm:text-lg leading-relaxed">{display.description}</p>
               </>
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className="shrink-0 flex flex-col items-end gap-2">
+          {/* Action buttons — row on mobile, column on desktop */}
+          <div className="shrink-0 flex flex-row sm:flex-col items-center sm:items-end gap-2">
             {isEditing ? (
               <>
                 <button
@@ -313,7 +313,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
         </div>
 
         {/* Meta row */}
-        <div className="flex flex-wrap gap-4 mt-6">
+        <div className="flex flex-wrap gap-2 sm:gap-4 mt-4 sm:mt-6">
           {isEditing ? (
             <>
               <label className="flex items-center gap-2 bg-amber-800/50 rounded-lg px-3 py-1.5">
