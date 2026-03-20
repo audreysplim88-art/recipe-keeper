@@ -7,47 +7,7 @@ interface VoiceCaptureProps {
   onTranscriptChange: (transcript: string) => void;
 }
 
-// Web Speech API types (not in standard lib)
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-interface SpeechRecognitionResultList {
-  length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  [index: number]: SpeechRecognitionAlternative;
-}
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  start(): void;
-  abort(): void;
-}
-declare const SpeechRecognition: {
-  new (): SpeechRecognition;
-};
-
-// Extend window type for Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+// Web Speech API types are declared globally in lib/speech-api.d.ts
 
 export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCaptureProps) {
   const [isListening, setIsListening] = useState(false);
