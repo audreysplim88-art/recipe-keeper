@@ -14,6 +14,7 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
   const [isSupported, setIsSupported] = useState(true);
   const [interimText, setInterimText] = useState("");
   const [networkWarning, setNetworkWarning] = useState(false);
+  const [micDenied, setMicDenied] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -49,13 +50,17 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
     };
 
     recognition.onend = () => {
-      // Auto-restart if still supposed to be listening
+      // Auto-restart if still supposed to be listening.
+      // 150ms delay prevents InvalidStateError on iOS Safari when restarting
+      // immediately after an utterance ends.
       if (recognitionRef.current && isListeningRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          setIsListening(false);
-        }
+        setTimeout(() => {
+          try {
+            recognition.start();
+          } catch {
+            setIsListening(false);
+          }
+        }, 150);
       }
     };
 
@@ -70,7 +75,12 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
         setTimeout(() => setNetworkWarning(false), 4000);
         return;
       }
-      // Genuinely unrecoverable errors (e.g. "not-allowed", "service-not-allowed")
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setMicDenied(true);
+        setIsListening(false);
+        return;
+      }
+      // Other unrecoverable errors
       console.error("Speech recognition error:", event.error);
       setIsListening(false);
     };
@@ -96,6 +106,7 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
+    setMicDenied(false);
     try {
       recognitionRef.current.start();
       setIsListening(true);
@@ -139,7 +150,13 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
             Voice input not supported in this browser. Please type your narration below.
           </p>
         )}
-        {isListening && !networkWarning && (
+        {micDenied && (
+          <p className="text-sm text-red-600 font-medium flex items-center gap-1.5">
+            <span>🎙✗</span> Microphone access denied.{" "}
+            On iPhone: <strong>Settings → Safari → Microphone</strong> → allow this site.
+          </p>
+        )}
+      {isListening && !networkWarning && (
           <span className="text-sm text-red-500 font-medium flex items-center gap-1">
             <span className="w-2 h-2 bg-red-500 rounded-full inline-block animate-ping" />
             Listening...

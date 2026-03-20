@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// iOS Safari requires SpeechRecognition.start() to be called from a direct
+// user gesture (tap). Programmatic activation via useEffect is blocked.
+// We detect iOS once at module level so it's stable across renders.
+const isIOS =
+  typeof navigator !== "undefined" &&
+  /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 // ─── Web Speech API types ─────────────────────────────────────────────────────
 // Declared globally in lib/speech-api.d.ts — no local declarations needed.
@@ -55,6 +62,11 @@ export default function CookingVoiceInput({
     typeof window !== "undefined" &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+  // iOS tap-to-speak state
+  const [iosListening, setIosListening] = useState(false);
+  // Mic denied / error message
+  const [micError, setMicError] = useState<string | null>(null);
+
   // ─── Send helper ────────────────────────────────────────────────────────────
 
   const sendAndClear = useCallback(() => {
@@ -105,17 +117,31 @@ export default function CookingVoiceInput({
     };
 
     recognition.onend = () => {
-      // Auto-restart only if still supposed to be active
+      if (isIOS) {
+        // On iOS: don't auto-restart — wait for the next explicit tap.
+        setIosListening(false);
+        return;
+      }
+      // Non-iOS: auto-restart after a short delay to avoid InvalidStateError.
       if (isActiveRef.current && recognitionRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          // Already running — ignore
-        }
+        setTimeout(() => {
+          try {
+            recognition.start();
+          } catch {
+            // Already running — ignore
+          }
+        }, 150);
       }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setMicError(
+          "Microphone access was denied. On iPhone: Settings → Safari → Microphone → allow this site."
+        );
+        setIosListening(false);
+        return;
+      }
       // Ignore transient / expected errors
       if (event.error === "no-speech" || event.error === "aborted") return;
       console.warn("CookingVoiceInput speech error:", event.error);
@@ -137,6 +163,20 @@ export default function CookingVoiceInput({
     const recognition = recognitionRef.current;
     if (!recognition) return;
 
+    if (isIOS) {
+      // iOS: never start programmatically — only abort when deactivated.
+      // The first start comes from a direct tap (handleIOSTap).
+      if (!isActive || disabled) {
+        recognition.abort();
+        setIosListening(false);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+      }
+      return;
+    }
+
     if (isActive && !disabled) {
       try {
         recognition.start();
@@ -153,6 +193,50 @@ export default function CookingVoiceInput({
       sendAndClear();
     }
   }, [isActive, disabled, sendAndClear]);
+
+  // ─── iOS tap-to-speak handler ────────────────────────────────────────────────
+
+  const handleIOSTap = useCallback(() => {
+    const recognition = recognitionRef.current;
+    if (!recognition || disabled || !isActive) return;
+    setMicError(null);
+    setIosListening(true);
+    try {
+      recognition.start();
+    } catch {
+      setIosListening(false);
+    }
+  }, [disabled, isActive]);
+
+  // ─── iOS voice UI (tap-to-speak) ─────────────────────────────────────────────
+
+  if (isIOS && isSupported) {
+    return (
+      <div className="flex flex-col items-center gap-2 w-full">
+        {micError && (
+          <p className="text-red-400 text-xs text-center px-4 leading-relaxed">{micError}</p>
+        )}
+        <button
+          onClick={handleIOSTap}
+          disabled={disabled || !isActive || iosListening}
+          aria-label={iosListening ? "Listening — speak now" : "Tap to speak"}
+          className={`flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-white transition-all duration-200 ${
+            iosListening
+              ? "bg-amber-500 border border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse"
+              : isActive && !disabled
+              ? "bg-amber-600 hover:bg-amber-500 active:scale-95"
+              : "bg-gray-700 opacity-50 cursor-not-allowed"
+          }`}
+        >
+          <span className="text-xl">🎙</span>
+          <span>{iosListening ? "Listening…" : "Tap to speak"}</span>
+        </button>
+        {isActive && !iosListening && !disabled && !micError && (
+          <p className="text-xs text-gray-500">Tap when ready to speak</p>
+        )}
+      </div>
+    );
+  }
 
   // ─── Fallback: text input ────────────────────────────────────────────────────
 
