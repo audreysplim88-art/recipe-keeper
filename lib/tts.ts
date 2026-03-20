@@ -20,6 +20,10 @@ export class TTSManager {
   private speaking = false;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private heartbeatId: ReturnType<typeof setInterval> | null = null;
+  // Fallback poll — detects utterance completion when utterance.onend doesn't
+  // fire (a known iOS Safari bug). Stored on the instance so interrupt() and
+  // destroy() can cancel it to prevent stale callbacks.
+  private endPollId: ReturnType<typeof setInterval> | null = null;
   private visibilityHandler: (() => void) | null = null;
   private readonly onSpeakingChange: (speaking: boolean) => void;
 
@@ -71,6 +75,7 @@ export class TTSManager {
   interrupt(): void {
     if (!this.isAvailable) return;
     window.speechSynthesis.cancel();
+    this.clearEndPoll();
     this.queue = [];
     this.buffer = '';
     this.speaking = false;
@@ -111,6 +116,7 @@ export class TTSManager {
    */
   destroy(): void {
     this.interrupt();
+    this.clearEndPoll();
     if (this.heartbeatId !== null) {
       clearInterval(this.heartbeatId);
       this.heartbeatId = null;
@@ -150,32 +156,56 @@ export class TTSManager {
     const voice = this.selectVoice();
     if (voice) utterance.voice = voice;
 
-    utterance.onend = () => {
+    // Shared completion handler — guarded so it only runs once even if both
+    // utterance.onend AND the fallback poll fire (the poll is cancelled first,
+    // but belt-and-suspenders prevents a double onSpeakingChange(false)).
+    let completed = false;
+    const onComplete = () => {
+      if (completed) return;
+      completed = true;
+      this.clearEndPoll();
       this.speaking = false;
       this.currentUtterance = null;
       if (this.queue.length > 0) {
-        // Chain the next sentence
         this.processQueue();
       } else {
         this.onSpeakingChange(false);
       }
     };
 
+    utterance.onend = onComplete;
+
     utterance.onerror = (e: SpeechSynthesisErrorEvent) => {
-      // 'interrupted' is thrown by our own interrupt() call — not a real error
+      // 'interrupted' / 'canceled' are thrown by our own interrupt() — not real errors
       if (e.error === 'interrupted' || e.error === 'canceled') return;
       console.warn('TTS error:', e.error);
-      this.speaking = false;
-      this.currentUtterance = null;
-      if (this.queue.length > 0) {
-        this.processQueue();
-      } else {
-        this.onSpeakingChange(false);
-      }
+      onComplete();
     };
 
     this.currentUtterance = utterance;
     window.speechSynthesis.speak(utterance);
+
+    // ── iOS Safari fallback ──────────────────────────────────────────────────
+    // utterance.onend is unreliable on iOS Safari — it sometimes never fires.
+    // Poll speechSynthesis.speaking (which IS reliable) as a safety net.
+    // The poll starts 400ms after speak() to avoid a false positive during the
+    // brief gap before the browser actually begins audio playback.
+    this.clearEndPoll();
+    const startTime = Date.now();
+    this.endPollId = setInterval(() => {
+      // Give the utterance at least 400ms to start before declaring it done
+      if (Date.now() - startTime < 400) return;
+      if (!window.speechSynthesis.speaking) {
+        onComplete();
+      }
+    }, 250);
+  }
+
+  private clearEndPoll(): void {
+    if (this.endPollId !== null) {
+      clearInterval(this.endPollId);
+      this.endPollId = null;
+    }
   }
 
   /**
