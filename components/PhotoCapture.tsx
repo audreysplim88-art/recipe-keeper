@@ -294,12 +294,12 @@ export default function PhotoCapture({ photos, onPhotosChange, maxPhotos = PHOTO
                 className="w-24 h-24 rounded-xl object-cover border-2 border-amber-200"
               />
 
-              {/* Remove button — appears on hover */}
+              {/* Remove button */}
               <button
                 type="button"
                 onClick={() => removePhoto(i)}
                 aria-label={`Remove photo ${i + 1}`}
-                className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center transition-colors"
+                className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center transition-colors"
               >
                 ✕
               </button>
@@ -310,7 +310,7 @@ export default function PhotoCapture({ photos, onPhotosChange, maxPhotos = PHOTO
 
       {/* ── Add-photo buttons ────────────────────────────────────────────── */}
       {!cameraVisible && canAddMore && (
-        <div className={`flex gap-3 ${photos.length === 0 ? "flex-col sm:flex-row" : ""}`}>
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             type="button"
             onClick={openCamera}

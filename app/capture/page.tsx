@@ -18,11 +18,11 @@ type InputMode = "narrate" | "paste" | "url" | "photo";
 
 const UNSAVED_WARNING = "You have an unsaved recipe. If you leave now it will be lost — are you sure?";
 
-const INPUT_MODES: { id: InputMode; icon: string; label: string }[] = [
-  { id: "narrate", icon: "🎙",  label: "Narrate" },
-  { id: "paste",   icon: "📋", label: "Paste text" },
-  { id: "url",     icon: "🔗", label: "From URL" },
-  { id: "photo",   icon: "📷", label: "Photo" },
+const INPUT_MODES: { id: InputMode; icon: string; label: string; shortLabel: string }[] = [
+  { id: "narrate", icon: "🎙",  label: "Narrate",    shortLabel: "Narrate" },
+  { id: "paste",   icon: "📋", label: "Paste text",  shortLabel: "Paste"  },
+  { id: "url",     icon: "🔗", label: "From URL",    shortLabel: "URL"    },
+  { id: "photo",   icon: "📷", label: "Photo",       shortLabel: "Photo"  },
 ];
 
 const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
@@ -302,14 +302,15 @@ export default function CapturePage() {
                 <button
                   key={mode.id}
                   onClick={() => handleModeChange(mode.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                     inputMode === mode.id
                       ? "bg-white text-amber-800 shadow-sm"
                       : "text-stone-500 hover:text-stone-700"
                   }`}
                 >
                   <span>{mode.icon}</span>
-                  <span>{mode.label}</span>
+                  <span className="sm:hidden">{mode.shortLabel}</span>
+                  <span className="hidden sm:inline">{mode.label}</span>
                 </button>
               ))}
             </div>
