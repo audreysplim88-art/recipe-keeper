@@ -79,9 +79,9 @@ export interface Recipe {
   id: string;
   title: string;
   description: string;
-  category?: RecipeCategory;
-  dietaryTags?: DietaryTag[];
-  allergens?: AllergenTag[];
+  category: RecipeCategory;
+  dietaryTags: DietaryTag[];
+  allergens: AllergenTag[];
   servings: string;
   prepTime: string;
   cookTime: string;
@@ -96,7 +96,7 @@ export interface Ingredient {
   amount: string;
   unit: string;
   name: string;
-  notes?: string;
+  notes: string | null;
 }
 
 export interface Tip {
@@ -104,16 +104,9 @@ export interface Tip {
   content: string;
 }
 
-export interface RecipeGenerationResult {
-  title: string;
-  description: string;
-  category: RecipeCategory;
-  dietaryTags: DietaryTag[];
-  allergens: AllergenTag[];
-  servings: string;
-  prepTime: string;
-  cookTime: string;
-  ingredients: Ingredient[];
-  instructions: string[];
-  tips: Tip[];
-}
+/**
+ * The shape Claude returns when generating a recipe.
+ * Derived from Recipe so the two can never drift — it is Recipe minus the
+ * storage-only fields that are assigned at save time.
+ */
+export type RecipeGenerationResult = Omit<Recipe, "id" | "createdAt" | "updatedAt">;

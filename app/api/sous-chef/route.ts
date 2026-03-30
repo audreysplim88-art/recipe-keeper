@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Recipe } from "@/lib/types";
+import { RECIPE_MODEL, SOUS_CHEF_MAX_TOKENS, SOUS_CHEF_CONVERSATION_WINDOW } from "@/lib/constants";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -35,12 +36,12 @@ function buildSystemPrompt(recipe: Recipe): string {
       : "None";
 
   const dietaryLine =
-    recipe.dietaryTags && recipe.dietaryTags.length > 0
+    recipe.dietaryTags.length > 0
       ? `Dietary: ${recipe.dietaryTags.join(", ")}`
       : "";
 
   const allergenLine =
-    recipe.allergens && recipe.allergens.length > 0
+    recipe.allergens.length > 0
       ? `Allergens: ${recipe.allergens.join(", ")}`
       : "";
 
@@ -96,8 +97,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "At least one message is required." }, { status: 400 });
     }
 
-    // Sliding window: keep last 20 messages (10 exchanges) to stay within context limits
-    const recentMessages = messages.slice(-20);
+    // Sliding window: keep last N messages to stay within context limits
+    const recentMessages = messages.slice(-SOUS_CHEF_CONVERSATION_WINDOW);
 
     const systemPrompt = buildSystemPrompt(recipe);
 
@@ -108,8 +109,8 @@ export async function POST(request: Request) {
       async start(controller) {
         try {
           const anthropicStream = client.messages.stream({
-            model: "claude-sonnet-4-6",
-            max_tokens: 200,
+            model: RECIPE_MODEL,
+            max_tokens: SOUS_CHEF_MAX_TOKENS,
             system: systemPrompt,
             messages: recentMessages,
           });

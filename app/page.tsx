@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getRecipes, saveRecipe } from "@/lib/storage";
 import { Recipe, RecipeCategory, CATEGORY_META, CATEGORY_ORDER, DIETARY_META } from "@/lib/types";
+import { BACKFILL_REQUEST_DELAY_MS } from "@/lib/constants";
 
 export default function HomePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -44,7 +45,7 @@ export default function HomePage() {
     const map = new Map<RecipeCategory, Recipe[]>();
     for (const cat of CATEGORY_ORDER) map.set(cat, []);
     for (const recipe of filtered) {
-      const cat: RecipeCategory = recipe.category ?? "other";
+      const cat: RecipeCategory = recipe.category;
       map.get(cat)!.push(recipe);
     }
     return map;
@@ -61,12 +62,20 @@ export default function HomePage() {
   type BackfillState = { total: number; done: number; errors: number; running: boolean };
   const [backfill, setBackfill] = useState<BackfillState | null>(null);
 
+  // Ref-based guard: prevents a second concurrent backfill run if the user
+  // clicks "Auto-detect now" before React has hidden the button after the first
+  // click. A ref is used (not state) to avoid an unnecessary re-render.
+  const backfillRunningRef = useRef(false);
+
   const runBackfill = async () => {
+    if (backfillRunningRef.current) return;
+
     const toProcess = getRecipes().filter(
       (r) => r.dietaryTags === undefined && r.allergens === undefined
     );
     if (toProcess.length === 0) return;
 
+    backfillRunningRef.current = true;
     setBackfill({ total: toProcess.length, done: 0, errors: 0, running: true });
 
     for (let i = 0; i < toProcess.length; i++) {
@@ -91,8 +100,15 @@ export default function HomePage() {
       } catch {
         setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1, errors: prev.errors + 1 }));
       }
+
+      // Rate-limit: pause between requests to avoid hitting API limits.
+      // Skip the delay after the last item so the run finishes promptly.
+      if (i < toProcess.length - 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, BACKFILL_REQUEST_DELAY_MS));
+      }
     }
 
+    backfillRunningRef.current = false;
     setBackfill((prev) => prev && ({ ...prev, running: false }));
     loadRecipes(); // refresh the list
   };
@@ -293,10 +309,10 @@ function CategorySections({
 
 /* ── Recipe card ────────────────────────────────────────────── */
 function RecipeListCard({ recipe }: { recipe: Recipe }) {
-  const tipCount = recipe.tips?.length ?? 0;
-  const meta = recipe.category ? CATEGORY_META[recipe.category] : null;
-  const dietaryTags = recipe.dietaryTags ?? [];
-  const allergenCount = recipe.allergens?.length ?? 0;
+  const tipCount = recipe.tips.length;
+  const meta = CATEGORY_META[recipe.category];
+  const dietaryTags = recipe.dietaryTags;
+  const allergenCount = recipe.allergens.length;
 
   return (
     <Link href={`/recipe/${recipe.id}`}>

@@ -4,7 +4,7 @@
  * localStorage is provided by jsdom and reset between tests.
  */
 
-import { getRecipes, getRecipe, saveRecipe, deleteRecipe, generateId } from "@/lib/storage";
+import { getRecipes, getRecipe, saveRecipe, deleteRecipe, generateId, StorageQuotaError } from "@/lib/storage";
 import { Recipe } from "@/lib/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -14,6 +14,9 @@ function makeRecipe(overrides: Partial<Recipe> = {}): Recipe {
     id: "test-1",
     title: "Test Recipe",
     description: "A test",
+    category: "other",
+    dietaryTags: [],
+    allergens: [],
     servings: "2 servings",
     prepTime: "10 minutes",
     cookTime: "20 minutes",
@@ -90,6 +93,42 @@ describe("saveRecipe", () => {
     const saved = getRecipe("r1");
     expect(saved?.dietaryTags).toEqual(["vegan"]);
     expect(saved?.allergens).toEqual(["gluten"]);
+  });
+});
+
+// ─── StorageQuotaError ────────────────────────────────────────────────────────
+
+describe("StorageQuotaError", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("saveRecipe throws StorageQuotaError when localStorage is full", () => {
+    jest.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new DOMException("QuotaExceededError", "QuotaExceededError");
+    });
+    expect(() => saveRecipe(makeRecipe())).toThrow(StorageQuotaError);
+  });
+
+  it("saveRecipe re-throws unknown errors unchanged", () => {
+    const boom = new Error("unexpected");
+    jest.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw boom;
+    });
+    expect(() => saveRecipe(makeRecipe())).toThrow(boom);
+  });
+
+  it("deleteRecipe throws StorageQuotaError when localStorage is full", () => {
+    jest.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new DOMException("QuotaExceededError", "QuotaExceededError");
+    });
+    expect(() => deleteRecipe("any-id")).toThrow(StorageQuotaError);
+  });
+
+  it("StorageQuotaError has the expected name and a non-empty message", () => {
+    const err = new StorageQuotaError();
+    expect(err.name).toBe("StorageQuotaError");
+    expect(err.message.length).toBeGreaterThan(0);
   });
 });
 

@@ -158,15 +158,18 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
 
   // Ingredient helpers
   const updateIngredient = (i: number, field: keyof Ingredient, value: string) => {
-    const updated = draft.ingredients.map((ing, idx) =>
-      idx === i ? { ...ing, [field]: value } : ing
-    );
+    const updated = draft.ingredients.map((ing, idx) => {
+      if (idx !== i) return ing;
+      // notes uses string | null — coerce empty string to null so stored data is clean
+      if (field === "notes") return { ...ing, notes: value || null };
+      return { ...ing, [field]: value };
+    });
     setDraft({ ...draft, ingredients: updated });
   };
   const removeIngredient = (i: number) =>
     setDraft({ ...draft, ingredients: draft.ingredients.filter((_, idx) => idx !== i) });
   const addIngredient = () =>
-    setDraft({ ...draft, ingredients: [...draft.ingredients, { amount: "", unit: "", name: "", notes: "" }] });
+    setDraft({ ...draft, ingredients: [...draft.ingredients, { amount: "", unit: "", name: "", notes: null }] });
 
   // Instruction helpers
   const updateInstruction = (i: number, value: string) => {

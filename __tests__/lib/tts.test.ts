@@ -6,6 +6,7 @@
  */
 
 import { TTSManager } from "@/lib/tts";
+import { TTS_SPEECH_RATE, TTS_SPEECH_PITCH } from "@/lib/constants";
 
 // ─── Mock speechSynthesis ────────────────────────────────────────────────────
 
@@ -14,6 +15,8 @@ const mockCancel = jest.fn();
 const mockPause = jest.fn();
 const mockResume = jest.fn();
 const mockGetVoices = jest.fn().mockReturnValue([]);
+const mockSynthAddEventListener = jest.fn();
+const mockSynthRemoveEventListener = jest.fn();
 
 // Track the last utterance passed to speak() so we can fire its callbacks
 let lastUtterance: MockUtterance | null = null;
@@ -22,7 +25,7 @@ class MockUtterance {
   text: string;
   rate = 1;
   pitch = 1;
-  voice: null = null;
+  voice: SpeechSynthesisVoice | null = null;
   onend: (() => void) | null = null;
   onerror: ((e: { error: string }) => void) | null = null;
 
@@ -42,6 +45,8 @@ beforeAll(() => {
       resume: mockResume,
       getVoices: mockGetVoices,
       speaking: false,
+      addEventListener: mockSynthAddEventListener,
+      removeEventListener: mockSynthRemoveEventListener,
     },
   });
   Object.defineProperty(window, "SpeechSynthesisUtterance", {
@@ -223,5 +228,128 @@ describe("destroy", () => {
     tts.appendText("About to be destroyed.");
     expect(() => tts.destroy()).not.toThrow();
     expect(mockCancel).toHaveBeenCalled();
+  });
+});
+
+// ─── Utterance settings ───────────────────────────────────────────────────────
+
+describe("utterance settings", () => {
+  it("sets rate to TTS_SPEECH_RATE", () => {
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Reduce the heat now.");
+    expect(lastUtterance?.rate).toBe(TTS_SPEECH_RATE);
+  });
+
+  it("sets pitch to TTS_SPEECH_PITCH", () => {
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Reduce the heat now.");
+    expect(lastUtterance?.pitch).toBe(TTS_SPEECH_PITCH);
+  });
+});
+
+// ─── Voice selection ──────────────────────────────────────────────────────────
+
+function makeVoice(name: string, lang = "en-US"): SpeechSynthesisVoice {
+  return { name, lang, default: false, localService: true, voiceURI: name } as SpeechSynthesisVoice;
+}
+
+describe("voice selection", () => {
+  it("prefers 'Google UK English Female' above all others", () => {
+    mockGetVoices.mockReturnValue([
+      makeVoice("Google US English"),
+      makeVoice("Google UK English Female"),
+      makeVoice("Samantha"),
+    ]);
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Google UK English Female");
+  });
+
+  it("prefers 'Google US English Female' over 'Google UK English Male'", () => {
+    mockGetVoices.mockReturnValue([
+      makeVoice("Google UK English Male"),
+      makeVoice("Google US English Female"),
+    ]);
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Google US English Female");
+  });
+
+  it("prefers enhanced macOS voices over their standard counterparts", () => {
+    mockGetVoices.mockReturnValue([
+      makeVoice("Samantha"),
+      makeVoice("Samantha (Enhanced)"),
+    ]);
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Samantha (Enhanced)");
+  });
+
+  it("falls back to the first English-language voice when no preferred voice is available", () => {
+    mockGetVoices.mockReturnValue([
+      makeVoice("Zosia", "pl-PL"),
+      makeVoice("Flo", "en-GB"),
+      makeVoice("Alice", "it-IT"),
+    ]);
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Flo");
+  });
+
+  it("sets no voice (browser default) when getVoices returns an empty list", () => {
+    mockGetVoices.mockReturnValue([]);
+    const tts = new TTSManager(jest.fn());
+    tts.appendText("Ready.");
+    // voice property stays at the MockUtterance default (null)
+    expect(lastUtterance?.voice).toBeNull();
+  });
+});
+
+// ─── Eager voice loading (primeVoices) ───────────────────────────────────────
+
+describe("eager voice loading", () => {
+  it("caches the preferred voice immediately when getVoices() returns voices at setup time", () => {
+    mockGetVoices.mockReturnValue([
+      makeVoice("Samantha"),
+      makeVoice("Google UK English Female"),
+    ]);
+    const tts = new TTSManager(jest.fn());
+    tts.setupVisibilityWorkaround();
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Google UK English Female");
+  });
+
+  it("registers a voiceschanged listener on speechSynthesis during setup", () => {
+    const tts = new TTSManager(jest.fn());
+    tts.setupVisibilityWorkaround();
+    const registeredEvents = mockSynthAddEventListener.mock.calls.map(([event]) => event);
+    expect(registeredEvents).toContain("voiceschanged");
+  });
+
+  it("updates the cached voice when the voiceschanged event fires", () => {
+    // Start with no voices (Chrome's initial state)
+    mockGetVoices.mockReturnValue([]);
+    const tts = new TTSManager(jest.fn());
+    tts.setupVisibilityWorkaround();
+
+    // Voices arrive asynchronously
+    mockGetVoices.mockReturnValue([makeVoice("Google UK English Female")]);
+
+    // Simulate the browser firing voiceschanged
+    const voicesChangedCb = mockSynthAddEventListener.mock.calls.find(
+      ([event]: [string]) => event === "voiceschanged"
+    )?.[1] as (() => void) | undefined;
+    voicesChangedCb?.();
+
+    tts.appendText("Ready.");
+    expect(lastUtterance?.voice?.name).toBe("Google UK English Female");
+  });
+
+  it("removes the voiceschanged listener when destroy() is called", () => {
+    const tts = new TTSManager(jest.fn());
+    tts.setupVisibilityWorkaround();
+    tts.destroy();
+    const removedEvents = mockSynthRemoveEventListener.mock.calls.map(([event]) => event);
+    expect(removedEvents).toContain("voiceschanged");
   });
 });

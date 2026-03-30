@@ -3,22 +3,26 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import VoiceCapture from "@/components/VoiceCapture";
-import { saveRecipe, generateId } from "@/lib/storage";
+import PhotoCapture, { CapturedPhoto } from "@/components/PhotoCapture";
+import { saveRecipe, generateId, StorageQuotaError } from "@/lib/storage";
 import { Recipe, RecipeGenerationResult } from "@/lib/types";
 import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
-
-const BACKUP_KEY = "capture-backup";
-const BACKUP_INTERVAL_MS = 30_000; // auto-save every 30 s of inactivity
+import {
+  CAPTURE_BACKUP_KEY,
+  CAPTURE_BACKUP_INTERVAL_MS,
+  CAPTURE_MIN_CONTENT_CHARS,
+} from "@/lib/constants";
 
 type Stage = "capture" | "generating" | "preview";
-type InputMode = "narrate" | "paste" | "url";
+type InputMode = "narrate" | "paste" | "url" | "photo";
 
 const UNSAVED_WARNING = "You have an unsaved recipe. If you leave now it will be lost — are you sure?";
 
 const INPUT_MODES: { id: InputMode; icon: string; label: string }[] = [
-  { id: "narrate", icon: "🎙", label: "Narrate" },
+  { id: "narrate", icon: "🎙",  label: "Narrate" },
   { id: "paste",   icon: "📋", label: "Paste text" },
   { id: "url",     icon: "🔗", label: "From URL" },
+  { id: "photo",   icon: "📷", label: "Photo" },
 ];
 
 const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
@@ -31,8 +35,12 @@ const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
     body: "Paste any recipe text — from an old document, a family notebook, a handwritten card you've typed up, or anywhere else. Claude will structure it and pull out any hidden tips or technique notes.",
   },
   url: {
-    heading: "Import from a website",
-    body: "Paste the URL of any publicly accessible recipe page. The page will be fetched and the recipe extracted automatically. If a site blocks access, use \"Paste text\" instead.",
+    heading: "Import from a website or Instagram",
+    body: "Paste the URL of any publicly accessible recipe page — including Instagram Reels. For Reels, the recipe is pulled from the post caption, so make sure the creator included it there. If a site blocks access, use \"Paste text\" instead.",
+  },
+  photo: {
+    heading: "Photograph a recipe",
+    body: "Take up to 5 photos of a recipe from a book, magazine, or handwritten card — or upload pictures you've already taken. Claude will read across all the pages and build the recipe card for you.",
   },
 };
 
@@ -42,6 +50,7 @@ export default function CapturePage() {
   const [transcript, setTranscript] = useState("");   // narrate + paste share this
   const [urlInput, setUrlInput] = useState("");
   const [urlFetching, setUrlFetching] = useState(false);
+  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [stage, setStage] = useState<Stage>("capture");
   const [error, setError] = useState<string | null>(null);
   const [generatedRecipe, setGeneratedRecipe] = useState<RecipeGenerationResult | null>(null);
@@ -50,19 +59,20 @@ export default function CapturePage() {
   const lastBackupTimeRef = useRef<number>(0);
 
   // Warn on browser refresh / tab close whenever there is unsaved content:
-  // - capture stage: user has typed/narrated content but not yet generated
+  // - capture stage: user has typed/narrated content, or has taken photos, but not yet generated
   // - preview stage: recipe was generated but not yet saved
-  const hasCaptureContent = (inputMode === "narrate" || inputMode === "paste")
-    && transcript.trim().length >= 20;
+  const hasCaptureContent =
+    ((inputMode === "narrate" || inputMode === "paste") && transcript.trim().length >= CAPTURE_MIN_CONTENT_CHARS) ||
+    (inputMode === "photo" && photos.length > 0);
   useUnsavedChangesWarning(hasCaptureContent || stage === "preview");
 
   // Check for backup on mount
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(BACKUP_KEY);
+      const raw = sessionStorage.getItem(CAPTURE_BACKUP_KEY);
       if (raw) {
         const backup = JSON.parse(raw) as { transcript: string; savedAt: string };
-        if (backup.transcript && backup.transcript.trim().length > 20) {
+        if (backup.transcript && backup.transcript.trim().length > CAPTURE_MIN_CONTENT_CHARS) {
           setShowRestoreBanner(true);
         }
       }
@@ -73,13 +83,13 @@ export default function CapturePage() {
 
   // Auto-save narration to sessionStorage (at most once per 30 s)
   useEffect(() => {
-    if (inputMode !== "narrate" || transcript.trim().length < 20) return;
+    if (inputMode !== "narrate" || transcript.trim().length < CAPTURE_MIN_CONTENT_CHARS) return;
     const now = Date.now();
-    if (now - lastBackupTimeRef.current < BACKUP_INTERVAL_MS) return;
+    if (now - lastBackupTimeRef.current < CAPTURE_BACKUP_INTERVAL_MS) return;
     lastBackupTimeRef.current = now;
     try {
       sessionStorage.setItem(
-        BACKUP_KEY,
+        CAPTURE_BACKUP_KEY,
         JSON.stringify({ transcript, savedAt: new Date().toISOString() })
       );
     } catch {
@@ -105,7 +115,7 @@ export default function CapturePage() {
 
   const handleRestoreBackup = () => {
     try {
-      const raw = sessionStorage.getItem(BACKUP_KEY);
+      const raw = sessionStorage.getItem(CAPTURE_BACKUP_KEY);
       if (raw) {
         const backup = JSON.parse(raw) as { transcript: string };
         setTranscript(backup.transcript);
@@ -118,7 +128,7 @@ export default function CapturePage() {
   };
 
   const handleDismissBackup = () => {
-    sessionStorage.removeItem(BACKUP_KEY);
+    sessionStorage.removeItem(CAPTURE_BACKUP_KEY);
     setShowRestoreBanner(false);
   };
 
@@ -141,7 +151,10 @@ export default function CapturePage() {
         return;
       }
       // Hand the extracted text straight off to Claude
-      await runGenerate(data.text, "url");
+      await runRecipeRequest("/api/generate-recipe", {
+        transcript: data.text,
+        source: data.source ?? "url",
+      });
     } catch {
       setError("Network error fetching the URL. Please check your connection.");
     } finally {
@@ -149,15 +162,19 @@ export default function CapturePage() {
     }
   };
 
-  /** Call the generate-recipe API and transition to preview. */
-  const runGenerate = async (content: string, source: string) => {
+  /**
+   * POST to a recipe-generation endpoint and drive the stage transitions.
+   * Handles the generating → preview (success) and generating → capture (error)
+   * flow in one place so the two generation paths stay in sync.
+   */
+  const runRecipeRequest = async (url: string, body: Record<string, unknown>) => {
     setError(null);
     setStage("generating");
     try {
-      const res = await fetch("/api/generate-recipe", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: content, source }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -179,13 +196,22 @@ export default function CapturePage() {
       await handleFetchUrl();
       return;
     }
-    if (transcript.trim().length < 20) {
+    if (inputMode === "photo") {
+      await runRecipeRequest("/api/generate-recipe-from-images", {
+        images: photos.map((p) => ({ base64: p.base64, mediaType: p.mediaType })),
+      });
+      return;
+    }
+    if (transcript.trim().length < CAPTURE_MIN_CONTENT_CHARS) {
       setError(inputMode === "narrate"
         ? "Please narrate a bit more before generating — tell me about the dish!"
         : "Please paste some recipe text before generating.");
       return;
     }
-    await runGenerate(transcript, inputMode === "narrate" ? "narration" : "text");
+    await runRecipeRequest("/api/generate-recipe", {
+      transcript,
+      source: inputMode === "narrate" ? "narration" : "text",
+    });
   };
 
   const handleSave = () => {
@@ -198,8 +224,17 @@ export default function CapturePage() {
       createdAt: now,
       updatedAt: now,
     };
-    saveRecipe(recipe);
-    sessionStorage.removeItem(BACKUP_KEY); // clear safety net after successful save
+    try {
+      saveRecipe(recipe);
+    } catch (err) {
+      if (err instanceof StorageQuotaError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong saving your recipe. Please try again.");
+      }
+      return;
+    }
+    sessionStorage.removeItem(CAPTURE_BACKUP_KEY); // clear safety net after successful save
     router.refresh();
     router.push(`/recipe/${recipe.id}`);
   };
@@ -210,14 +245,20 @@ export default function CapturePage() {
     }
     setStage("capture");
     setGeneratedRecipe(null);
+    setPhotos([]);
     setError(null);
   };
 
-  const canGenerate = inputMode === "url"
-    ? urlInput.trim().length > 0
-    : transcript.trim().length >= 20;
+  const canGenerate =
+    inputMode === "url"   ? urlInput.trim().length > 0 :
+    inputMode === "photo" ? photos.length > 0 :
+    transcript.trim().length >= CAPTURE_MIN_CONTENT_CHARS;
 
-  const generateLabel = urlFetching ? "Fetching page..." : inputMode === "url" ? "Import Recipe ✨" : "Generate Recipe ✨";
+  const generateLabel =
+    urlFetching           ? "Fetching page…" :
+    inputMode === "url"   ? "Import Recipe ✨" :
+    inputMode === "photo" ? `Read Photo${photos.length !== 1 ? "s" : ""} ✨` :
+    "Generate Recipe ✨";
 
   return (
     <div className="min-h-screen bg-stone-100">
@@ -305,7 +346,7 @@ export default function CapturePage() {
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && canGenerate && !urlFetching && handleGenerate()}
-                      placeholder="https://www.example.com/my-favourite-recipe"
+                      placeholder="https://www.instagram.com/reel/... or any recipe page URL"
                       className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm"
                     />
                   </div>
@@ -313,6 +354,10 @@ export default function CapturePage() {
                     The page must be publicly accessible. If it&apos;s behind a login or paywall, copy and paste the text instead.
                   </p>
                 </div>
+              )}
+
+              {inputMode === "photo" && (
+                <PhotoCapture photos={photos} onPhotosChange={setPhotos} />
               )}
             </div>
 
@@ -336,12 +381,14 @@ export default function CapturePage() {
 
         {stage === "generating" && (
           <div className="text-center py-24">
-            <div className="text-6xl mb-6 animate-bounce">🍳</div>
+            <div className="text-6xl mb-6 animate-bounce">{inputMode === "photo" ? "📷" : "🍳"}</div>
             <h2 className="text-2xl font-serif font-bold text-stone-700 mb-2">
-              Reading between the lines...
+              {inputMode === "photo" ? "Reading your photos…" : "Reading between the lines…"}
             </h2>
             <p className="text-stone-500">
-              Claude is finding the recipe, extracting the tips, tricks and secrets.
+              {inputMode === "photo"
+                ? "Claude is reading across your photos and pulling the recipe together."
+                : "Claude is finding the recipe, extracting the tips, tricks and secrets."}
             </p>
           </div>
         )}

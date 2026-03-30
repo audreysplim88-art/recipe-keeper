@@ -8,11 +8,17 @@
  * - Safe to instantiate on the server (all window access is guarded)
  */
 
+import {
+  TTS_SPEECH_RATE,
+  TTS_SPEECH_PITCH,
+  TTS_HEARTBEAT_INTERVAL_MS,
+  TTS_END_POLL_GRACE_MS,
+  TTS_END_POLL_INTERVAL_MS,
+  TTS_PREFERRED_VOICES,
+} from "@/lib/constants";
+
 // Sentence-ending punctuation followed by whitespace or end-of-string
 const SENTENCE_BOUNDARY = /[.!?]+(?=\s|$)/;
-
-// Preferred voice names in priority order
-const PREFERRED_VOICES = ['Google US English', 'Samantha', 'Karen', 'Daniel'];
 
 export class TTSManager {
   private buffer = '';
@@ -25,6 +31,10 @@ export class TTSManager {
   // destroy() can cancel it to prevent stale callbacks.
   private endPollId: ReturnType<typeof setInterval> | null = null;
   private visibilityHandler: (() => void) | null = null;
+  // Eager voice loading — populated by primeVoices() so the first utterance
+  // never falls back to the robotic OS default while Chrome's voice list loads.
+  private cachedVoice: SpeechSynthesisVoice | null = null;
+  private voicesChangedHandler: (() => void) | null = null;
   private readonly onSpeakingChange: (speaking: boolean) => void;
 
   constructor(onSpeakingChange: (speaking: boolean) => void) {
@@ -68,6 +78,26 @@ export class TTSManager {
   }
 
   /**
+   * Unlocks iOS Safari's audio context by speaking a silent, empty utterance
+   * from within a direct user gesture handler (e.g. the "Start Cooking" tap).
+   *
+   * iOS Safari blocks speechSynthesis.speak() calls that happen inside async
+   * callbacks (fetch, setTimeout, etc.) unless audio was first initiated from
+   * a synchronous user gesture. Calling prime() in the button's onClick handler
+   * — before any await — satisfies that requirement and allows the sous chef's
+   * TTS responses to play normally on iPhone.
+   *
+   * The utterance is inaudible (volume = 0) and completes in milliseconds.
+   * Must be called once at session start; audio stays unlocked for the session.
+   */
+  prime(): void {
+    if (!this.isAvailable) return;
+    const utterance = new SpeechSynthesisUtterance('');
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  /**
    * Immediately cancels all speech and empties the queue.
    * Called the moment the user starts speaking so they're never talking
    * over the AI.
@@ -93,13 +123,17 @@ export class TTSManager {
   setupVisibilityWorkaround(): void {
     if (typeof window === 'undefined') return;
 
-    // iOS heartbeat — every 10s, nudge speechSynthesis to prevent silent cutoff
+    // Eager voice loading — populate the cache now so the first utterance gets
+    // the preferred voice instead of the robotic OS default.
+    this.primeVoices();
+
+    // iOS heartbeat — nudge speechSynthesis periodically to prevent silent cutoff
     this.heartbeatId = setInterval(() => {
       if (this.speaking && window.speechSynthesis.speaking) {
         window.speechSynthesis.pause();
         window.speechSynthesis.resume();
       }
-    }, 10_000);
+    }, TTS_HEARTBEAT_INTERVAL_MS);
 
     // Chrome background-tab workaround
     this.visibilityHandler = () => {
@@ -124,6 +158,10 @@ export class TTSManager {
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
+    }
+    if (this.voicesChangedHandler && this.isAvailable) {
+      window.speechSynthesis.removeEventListener('voiceschanged', this.voicesChangedHandler);
+      this.voicesChangedHandler = null;
     }
   }
 
@@ -150,8 +188,8 @@ export class TTSManager {
 
     const text = this.queue.shift()!;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.1;   // slightly faster — works well for instructions
-    utterance.pitch = 1.0;
+    utterance.rate = TTS_SPEECH_RATE;
+    utterance.pitch = TTS_SPEECH_PITCH;
 
     const voice = this.selectVoice();
     if (voice) utterance.voice = voice;
@@ -193,12 +231,11 @@ export class TTSManager {
     this.clearEndPoll();
     const startTime = Date.now();
     this.endPollId = setInterval(() => {
-      // Give the utterance at least 400ms to start before declaring it done
-      if (Date.now() - startTime < 400) return;
+      if (Date.now() - startTime < TTS_END_POLL_GRACE_MS) return;
       if (!window.speechSynthesis.speaking) {
         onComplete();
       }
-    }, 250);
+    }, TTS_END_POLL_INTERVAL_MS);
   }
 
   private clearEndPoll(): void {
@@ -209,23 +246,52 @@ export class TTSManager {
   }
 
   /**
-   * Picks the best available voice.
-   * `getVoices()` may return [] on the first call in Chrome (async loading) —
-   * returning null here means the browser will use its default voice,
-   * which is fine for early utterances; later ones will pick up the preference.
+   * Scans the current voice list and returns the best available voice,
+   * or null if the list is empty.
    */
-  private selectVoice(): SpeechSynthesisVoice | null {
+  private findBestVoice(): SpeechSynthesisVoice | null {
     if (!this.isAvailable) return null;
     const voices = window.speechSynthesis.getVoices();
     if (voices.length === 0) return null;
 
-    // Try preferred voices by name
-    for (const name of PREFERRED_VOICES) {
+    for (const name of TTS_PREFERRED_VOICES) {
       const match = voices.find((v) => v.name === name);
       if (match) return match;
     }
 
-    // Fall back to first English-language voice
     return voices.find((v) => v.lang.startsWith('en')) ?? null;
+  }
+
+  /**
+   * Returns the cached preferred voice, falling back to a live lookup if
+   * primeVoices() hasn't been called yet (e.g. in test environments).
+   */
+  private selectVoice(): SpeechSynthesisVoice | null {
+    return this.cachedVoice ?? this.findBestVoice();
+  }
+
+  /**
+   * Populates cachedVoice eagerly so the very first utterance uses the
+   * preferred voice rather than the robotic OS default.
+   *
+   * Chrome loads voices asynchronously — getVoices() returns [] on the first
+   * call and the list only arrives via the voiceschanged event. We listen for
+   * that event and update the cache when it fires. On Safari/Firefox, getVoices()
+   * returns synchronously, so the cache is populated immediately.
+   *
+   * The voiceschanged listener is also kept alive to handle the rare case where
+   * the OS voice list changes mid-session (e.g. user installs a new voice).
+   */
+  private primeVoices(): void {
+    if (!this.isAvailable) return;
+
+    // Try immediately — works for browsers that return voices synchronously.
+    this.cachedVoice = this.findBestVoice();
+
+    // Register for async updates (Chrome) and any future voice list changes.
+    this.voicesChangedHandler = () => {
+      this.cachedVoice = this.findBestVoice();
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', this.voicesChangedHandler);
   }
 }

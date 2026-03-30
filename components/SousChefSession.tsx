@@ -193,6 +193,10 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
 
   const handleBegin = useCallback(
     (triggerText: string) => {
+      // Prime TTS from this user gesture so iOS Safari allows async audio playback.
+      // iOS blocks speechSynthesis.speak() in fetch callbacks unless audio was
+      // first triggered synchronously from a direct tap.
+      ttsRef.current?.prime();
       setPhase("initializing");
       sendMessage(triggerText, []);
     },

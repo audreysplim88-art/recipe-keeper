@@ -2,9 +2,46 @@
  * Fetches a recipe URL server-side (bypassing browser CORS restrictions),
  * strips the HTML down to readable text, then passes it to the generate-recipe
  * endpoint so Claude can structure it into a recipe card.
+ *
+ * Instagram Reels are handled specially: the recipe lives in the post caption,
+ * which Instagram embeds in the og:description meta tag even for server-side fetches.
  */
 
-const MAX_CONTENT_LENGTH = 20_000; // chars sent to Claude — enough for any recipe page
+import {
+  URL_MAX_CONTENT_CHARS,
+  URL_FETCH_TIMEOUT_MS,
+  URL_MIN_PAGE_TEXT_CHARS,
+  INSTAGRAM_MIN_CAPTION_CHARS,
+  URL_FETCH_USER_AGENT,
+} from "@/lib/constants";
+
+function isInstagramUrl(url: URL): boolean {
+  return url.hostname === "www.instagram.com" || url.hostname === "instagram.com";
+}
+
+/** Extract og:description (or fallback description) meta tag content from raw HTML. */
+function extractMetaDescription(html: string): string {
+  const patterns = [
+    /<meta\s[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i,
+    /<meta\s[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i,
+    /<meta\s[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i,
+    /<meta\s[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i,
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) {
+      return match[1]
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .trim();
+    }
+  }
+  return "";
+}
 
 /** Strip HTML tags, scripts, styles and collapse whitespace into clean readable text. */
 function extractText(html: string): string {
@@ -55,12 +92,11 @@ export async function POST(request: Request) {
     try {
       const res = await fetch(parsedUrl.toString(), {
         headers: {
-          // Polite browser-like user agent so most recipe sites serve content normally
-          "User-Agent": "Mozilla/5.0 (compatible; RecipeKeeper/1.0; personal use)",
+          "User-Agent": URL_FETCH_USER_AGENT,
           "Accept": "text/html,application/xhtml+xml",
           "Accept-Language": "en-US,en;q=0.9",
         },
-        signal: AbortSignal.timeout(10_000), // 10 second timeout
+        signal: AbortSignal.timeout(URL_FETCH_TIMEOUT_MS),
       });
 
       if (!res.ok) {
@@ -87,17 +123,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extract and trim the text
-    const text = extractText(html).slice(0, MAX_CONTENT_LENGTH);
+    // Instagram: caption lives in the og:description meta tag
+    if (isInstagramUrl(parsedUrl)) {
+      const caption = extractMetaDescription(html);
+      if (!caption || caption.length < INSTAGRAM_MIN_CAPTION_CHARS) {
+        return Response.json(
+          { error: "Couldn't extract the caption from that Instagram Reel. Make sure the post is public, or copy the description text and use \"Paste text\" instead." },
+          { status: 422 }
+        );
+      }
+      return Response.json({ text: caption, source: "instagram" });
+    }
 
-    if (text.length < 100) {
+    // Extract and trim the text
+    const text = extractText(html).slice(0, URL_MAX_CONTENT_CHARS);
+
+    if (text.length < URL_MIN_PAGE_TEXT_CHARS) {
       return Response.json(
         { error: "Couldn't extract readable content from that page. Try pasting the recipe text instead." },
         { status: 422 }
       );
     }
 
-    return Response.json({ text });
+    return Response.json({ text, source: "url" });
   } catch (error) {
     console.error("URL import error:", error);
     return Response.json({ error: "Something went wrong fetching that URL." }, { status: 500 });

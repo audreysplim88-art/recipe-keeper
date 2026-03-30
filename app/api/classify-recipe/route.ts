@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DietaryTag, AllergenTag } from "@/lib/types";
+import { CLASSIFY_MODEL, CLASSIFY_MAX_TOKENS } from "@/lib/constants";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -35,8 +36,8 @@ export async function POST(request: Request) {
     const userMessage = `Recipe: ${title || "Untitled"}\n${description ? `Description: ${description}\n` : ""}Ingredients:\n${ingredientList}`;
 
     const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 256,
+      model: CLASSIFY_MODEL,
+      max_tokens: CLASSIFY_MAX_TOKENS,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });

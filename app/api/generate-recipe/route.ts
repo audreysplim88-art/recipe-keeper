@@ -1,47 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { RecipeGenerationResult } from "@/lib/types";
+import { RECIPE_MODEL, RECIPE_MAX_TOKENS, MIN_TRANSCRIPT_CHARS } from "@/lib/constants";
+import { RECIPE_JSON_SCHEMA, RECIPE_SHARED_RULES, stripCodeFences } from "@/lib/prompts";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are a recipe scribe with a gift for capturing not just instructions, but the soul of cooking.
 
 You MUST return a valid JSON object with exactly this shape:
-{
-  "title": "string — a warm, descriptive recipe name",
-  "description": "string — 1-2 sentences capturing the spirit of the dish",
-  "category": "one of: starters | mains | desserts | sides | soups-salads | breakfast | snacks | drinks | sauces | other",
-  "dietaryTags": ["array of applicable tags from: vegan | vegetarian | gluten-free | dairy-free | nut-free — empty array if none apply"],
-  "allergens": ["array of present allergens from the EU/UK Big 14: gluten | crustaceans | eggs | fish | peanuts | soy | dairy | tree-nuts | celery | mustard | sesame | sulphites | lupin | molluscs — empty array if none"],
-  "servings": "string — e.g. '4 servings' or '6-8 people'",
-  "prepTime": "string — e.g. '20 minutes' or 'about half an hour'",
-  "cookTime": "string — e.g. '45 minutes'",
-  "ingredients": [
-    {
-      "amount": "string — the quantity, e.g. '2', '1/2', 'a handful'",
-      "unit": "string — e.g. 'cups', 'tbsp', 'cloves', '' (empty if none)",
-      "name": "string — the ingredient name",
-      "notes": "string or null — optional notes like 'room temperature' or 'finely chopped'"
-    }
-  ],
-  "instructions": [
-    "string — each step as a clear, complete sentence"
-  ],
-  "tips": [
-    {
-      "category": "tip" | "trick" | "secret" | "note",
-      "content": "string — the insight, personal touch, or technique note"
-    }
-  ]
-}
+${RECIPE_JSON_SCHEMA}
 
 CRITICAL RULES:
-- The "tips" array captures wisdom that doesn't appear in standard recipe steps: sensory cues (look for X, it should smell like Y), technique nuances, ingredient preferences, substitution notes, or anything that helps someone cook this dish *well*.
-- Separate the WHAT (instructions) from the WHY and HOW THEY KNOW (tips).
-- Make reasonable estimates for times and quantities if not stated explicitly.
-- Choose the most appropriate "category" based on the dish — use "other" only as a last resort.
-- For "dietaryTags": only include a tag if the recipe genuinely meets that standard (e.g. vegan means no animal products at all).
-- For "allergens": be thorough — scan every ingredient and include all relevant EU/UK Big 14 allergens present.
-- Return ONLY the JSON object, no markdown, no explanation.`;
+${RECIPE_SHARED_RULES}
+- Make reasonable estimates for times and quantities if not stated explicitly.`;
 
 const USER_MESSAGES: Record<string, (content: string) => string> = {
   narration: (content) =>
@@ -52,21 +23,24 @@ const USER_MESSAGES: Record<string, (content: string) => string> = {
 
   url: (content) =>
     `Here is the text content extracted from a recipe webpage. Please structure it into the required format, extracting any tips, technique notes, or useful asides the author included:\n\n${content}`,
+
+  instagram: (content) =>
+    `Here is the caption from an Instagram Reel where the creator shared their recipe. Captions are informal and may include hashtags (#tag) and @mentions — ignore those. Extract a complete recipe from whatever the creator shared. If they listed ingredients or steps, capture them carefully. Make sensible estimates for any missing quantities or timing, and treat any personal touches or technique hints as tips:\n\n${content}`,
 };
 
 export async function POST(request: Request) {
   try {
     const { transcript, source = "narration" } = await request.json();
 
-    if (!transcript || typeof transcript !== "string" || transcript.trim().length < 10) {
+    if (!transcript || typeof transcript !== "string" || transcript.trim().length < MIN_TRANSCRIPT_CHARS) {
       return Response.json({ error: "Please provide some recipe content." }, { status: 400 });
     }
 
     const getUserMessage = USER_MESSAGES[source] ?? USER_MESSAGES.narration;
 
     const stream = client.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      model: RECIPE_MODEL,
+      max_tokens: RECIPE_MAX_TOKENS,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: getUserMessage(transcript) }],
     });
@@ -80,8 +54,7 @@ export async function POST(request: Request) {
 
     let recipeData: RecipeGenerationResult;
     try {
-      const cleaned = textBlock.text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      recipeData = JSON.parse(cleaned);
+      recipeData = JSON.parse(stripCodeFences(textBlock.text));
     } catch {
       return Response.json({ error: "Failed to parse recipe. Please try again." }, { status: 500 });
     }

@@ -37,7 +37,26 @@ Home cooks face two distinct problems:
 - **Voice narration:** Dictate a recipe while cooking; AI structures it automatically
 - **Paste/type:** Paste from any source (old notes, websites, books)
 - **URL import:** Paste a recipe URL and import it directly
+- **Instagram Reel import:** Paste an Instagram Reel (or post) URL; the recipe is extracted from the post caption via the `og:description` meta tag and passed to Claude with Reel-aware context (hashtags and @mentions stripped, estimates made for any missing quantities or timing)
+- **Photo capture:** Take up to 5 photos using the device camera, or upload images from the camera roll; Claude reads across all pages using vision and builds the recipe card (supports cookbook pages, recipe cards, handwritten notes, magazine cuttings)
 - All modes extract: ingredients, steps, tips, tricks, secrets and notes
+
+#### URL Import — Technical Notes
+
+| Source | Detection | Extraction method | Claude source hint |
+|---|---|---|---|
+| Regular recipe site | Any non-Instagram URL | Server-side HTML fetch → body text stripped of scripts/styles/nav | `url` |
+| Instagram Reel / Post | `instagram.com` or `www.instagram.com` hostname | `og:description` meta tag (caption embedded in page `<head>`) | `instagram` |
+
+Instagram posts must be **public** for the `og:description` tag to contain the caption. Private posts or accounts that block server-side fetches will return an error prompting the user to copy-paste the description instead.
+
+#### Photo Capture — Technical Notes
+
+- Images are resized client-side via `<canvas>` to a maximum of 1920 px on the longest edge at JPEG quality 0.85 before being base64-encoded and sent to the API. This keeps payloads lean while preserving enough resolution for reliable OCR.
+- The device camera is accessed via `navigator.mediaDevices.getUserMedia` with `facingMode: "environment"` (rear camera preferred). If that constraint is over-constrained (e.g. desktop with only a front camera), the request retries with unconstrained video.
+- File uploads accept JPEG, PNG, WebP and GIF; all are re-encoded as JPEG after canvas resize.
+- All images are sent in a single Claude vision request (`claude-sonnet-4-6`). The user message content is an array of image blocks followed by a text block that tells Claude how many pages to expect and that they may span multiple pages.
+- **Known limitation:** EXIF orientation metadata (written by mobile cameras) is not corrected before canvas drawing, so portrait photos taken on some devices may render rotated in thumbnails. This does not affect recipe extraction quality.
 
 ### 4.2 Recipe Management (Shipped)
 - Recipe Box dashboard with search and category sections
