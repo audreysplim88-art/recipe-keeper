@@ -36,7 +36,7 @@ const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
   },
   url: {
     heading: "Import from a URL",
-    body: "Like a recipe from a blog or Instagram reel you've seen and want to make sure you never lose again? If it's a publicly accessible URL, or the recipe is written in the reel's description, you can paste the URL here and I'll do the rest!",
+    body: "Came across a recipe from a blog or Instagram reel you like and want to make sure you never lose them again? Or perhaps you're just tired of long blogs and ads. If it's a publicly accessible URL, or the recipe is written in the story/reel's description, you can paste the URL here and I'll do my magic!",
   },
   photo: {
     heading: "Snap a Recipe",
