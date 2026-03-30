@@ -32,7 +32,7 @@ const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
   },
   paste: {
     heading: "Copy and Paste a Written Recipe",
-    body: "Did you already have a digital copy of your recipe book somewhere? If so, you can choose to consolidate them here and into their own recipe card by copying the text and pasting them here. I will then structure it and make it pretty!",
+    body: "Did you already have a digital copy of your recipes living somewhere? If so, you can choose to turn them into their own recipe cards in your recipe library by copying+pasting the text here. I will do the rest!",
   },
   url: {
     heading: "Import from a URL",
