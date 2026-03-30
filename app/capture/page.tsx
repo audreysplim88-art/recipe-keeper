@@ -40,7 +40,7 @@ const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
   },
   photo: {
     heading: "Snap a Recipe",
-    body: "Seen a recipe in a magazine, book or card and want to keep it in your favourite recipes dashboard? No problem! Take a photo of the recipe or upload photos you've already taken. I will read across all the pages and images you've uploaded and build your recipe card!",
+    body: "Seen a recipe in a magazine, book or card and want to keep it in your recipes library? No problem! Take a photo of the recipe or upload photos you've already taken. I will read across the pages and images and build your recipe card!",
   },
 };
 
