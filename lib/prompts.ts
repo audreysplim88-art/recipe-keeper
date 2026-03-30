@@ -19,7 +19,7 @@
  */
 export const RECIPE_JSON_SCHEMA = `{
   "title": "string — a warm, descriptive recipe name",
-  "description": "string — 1-2 sentences capturing the spirit of the dish",
+  "description": "string — one concise plain-English sentence describing the dish (e.g. 'Whole roast duck in a honey-orange glaze and Grand Marnier sauce'). No marketing language, no superlatives.",
   "category": "one of: starters | mains | desserts | sides | soups-salads | breakfast | snacks | drinks | sauces | other",
   "dietaryTags": ["array of applicable tags from: vegan | vegetarian | gluten-free | dairy-free | nut-free — empty array if none apply"],
   "allergens": ["array of present allergens from the EU/UK Big 14: gluten | crustaceans | eggs | fish | peanuts | soy | dairy | tree-nuts | celery | mustard | sesame | sulphites | lupin | molluscs — empty array if none"],

@@ -9,6 +9,7 @@ import { BACKFILL_REQUEST_DELAY_MS } from "@/lib/constants";
 export default function HomePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [query, setQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState<RecipeCategory | null>(null);
 
   const loadRecipes = () => setRecipes(getRecipes());
 
@@ -119,16 +120,16 @@ export default function HomePage() {
       <header className="bg-amber-800 text-white px-6 py-8">
         <div className="max-w-5xl mx-auto flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-serif font-bold mb-1">Recipe Box</h1>
+            <h1 className="text-4xl font-serif font-bold mb-1">Gastronom</h1>
             <p className="text-amber-200 text-sm">
-              The recipes, tips and secrets that matter most
+              Your favourite recipes and chef tips and tricks, all in one place
             </p>
           </div>
           <Link
             href="/capture"
             className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0"
           >
-            <span>🎙</span> Capture a Recipe
+            + New Recipe
           </Link>
         </div>
 
@@ -161,6 +162,35 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Category filter pills */}
+        {recipes.length > 0 && !query && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setFilterCategory(null)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                filterCategory === null
+                  ? "bg-amber-700 text-white"
+                  : "border border-stone-300 text-stone-600 hover:border-amber-400 hover:text-amber-700"
+              }`}
+            >
+              All
+            </button>
+            {CATEGORY_ORDER.filter((cat) => (byCategory.get(cat)?.length ?? 0) > 0).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  filterCategory === cat
+                    ? "bg-amber-700 text-white"
+                    : "border border-stone-300 text-stone-600 hover:border-amber-400 hover:text-amber-700"
+                }`}
+              >
+                {CATEGORY_META[cat].emoji} {CATEGORY_META[cat].label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Backfill banner */}
         {!isSearching && recipes.length > 0 && (backfill !== null || untaggedRecipes.length > 0) && (
           <div className={`mb-6 rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
@@ -235,7 +265,7 @@ export default function HomePage() {
         ) : isSearching ? (
           <SearchResults recipes={filtered} query={query} />
         ) : (
-          <CategorySections byCategory={byCategory} totalCount={recipes.length} />
+          <CategorySections byCategory={byCategory} totalCount={recipes.length} filterCategory={filterCategory} />
         )}
       </main>
     </div>
@@ -271,12 +301,14 @@ function SearchResults({ recipes, query }: { recipes: Recipe[]; query: string })
 function CategorySections({
   byCategory,
   totalCount,
+  filterCategory,
 }: {
   byCategory: Map<RecipeCategory, Recipe[]>;
   totalCount: number;
+  filterCategory: RecipeCategory | null;
 }) {
   const activeSections = CATEGORY_ORDER.filter(
-    (cat) => (byCategory.get(cat)?.length ?? 0) > 0
+    (cat) => (byCategory.get(cat)?.length ?? 0) > 0 && (filterCategory === null || cat === filterCategory)
   );
 
   return (
@@ -309,7 +341,6 @@ function CategorySections({
 
 /* ── Recipe card ────────────────────────────────────────────── */
 function RecipeListCard({ recipe }: { recipe: Recipe }) {
-  const tipCount = recipe.tips.length;
   const meta = CATEGORY_META[recipe.category];
   const dietaryTags = recipe.dietaryTags;
   const allergenCount = recipe.allergens.length;
@@ -345,19 +376,13 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
           </div>
         </div>
 
-        <h2 className="font-serif font-bold text-stone-800 text-lg mb-1 group-hover:text-amber-700 transition-colors line-clamp-2">
+        <h2 className="font-serif font-bold text-stone-800 text-lg mb-3 group-hover:text-amber-700 transition-colors line-clamp-2">
           {recipe.title}
         </h2>
-        <p className="text-stone-500 text-sm leading-relaxed mb-3 line-clamp-3 flex-1">
-          {recipe.description}
-        </p>
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-stone-100">
           <div className="flex items-center gap-3 text-xs text-stone-400">
             {recipe.ingredients?.length > 0 && (
-              <span>🧄 {recipe.ingredients.length} ingredients</span>
-            )}
-            {tipCount > 0 && (
-              <span className="text-amber-600 font-medium">🤫 {tipCount} secrets</span>
+              <span>{recipe.ingredients.length} ingredients</span>
             )}
           </div>
           <span className="text-xs text-stone-400">

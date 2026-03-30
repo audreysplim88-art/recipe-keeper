@@ -1,7 +1,7 @@
 # Product Roadmap
 ## Recipe Keeper — AI Sous Chef
 
-**Last updated:** 2026-03-18
+**Last updated:** 2026-03-30
 
 ---
 
@@ -46,6 +46,20 @@
 | Mobile recipe steps drawer (toggle overlay on small screens) | 🔄 In Progress |
 | Touch target sizing ≥44px (iOS Human Interface Guidelines) | 🔄 In Progress |
 | `viewport-fit=cover` for full-screen cooking UI on iPhone | 🔄 In Progress |
+
+---
+
+## Phase 2.5 — UI Polish: Gastronom First Iteration
+*Goal: Rebrand, tighten copy, remove emoji clutter, add category filtering*
+
+| Feature | Status |
+|---|---|
+| Dashboard rebrand (Gastronom) + category filter (UI-001) | 🔲 Backlog |
+| Compact recipe grid cards (UI-002) | 🔲 Backlog |
+| Capture interface copy refresh & emoji removal (UI-003) | 🔲 Backlog |
+| Recipe detail header — description, button, edit/delete (UI-004) | 🔲 Backlog |
+| Sous Chef waiting screen redesign (UI-005) | 🔲 Backlog |
+| Sous Chef concise opening message (UI-006) | 🔲 Backlog |
 
 ---
 

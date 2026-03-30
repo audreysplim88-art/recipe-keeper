@@ -18,29 +18,29 @@ type InputMode = "narrate" | "paste" | "url" | "photo";
 
 const UNSAVED_WARNING = "You have an unsaved recipe. If you leave now it will be lost — are you sure?";
 
-const INPUT_MODES: { id: InputMode; icon: string; label: string; shortLabel: string }[] = [
-  { id: "narrate", icon: "🎙",  label: "Narrate",    shortLabel: "Narrate" },
-  { id: "paste",   icon: "📋", label: "Paste text",  shortLabel: "Paste"  },
-  { id: "url",     icon: "🔗", label: "From URL",    shortLabel: "URL"    },
-  { id: "photo",   icon: "📷", label: "Photo",       shortLabel: "Photo"  },
+const INPUT_MODES: { id: InputMode; label: string; shortLabel: string }[] = [
+  { id: "narrate", label: "Narrate",    shortLabel: "Narrate" },
+  { id: "paste",   label: "Paste",     shortLabel: "Paste"   },
+  { id: "url",     label: "From URL",  shortLabel: "URL"     },
+  { id: "photo",   label: "Photo",     shortLabel: "Photo"   },
 ];
 
 const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
   narrate: {
-    heading: "Cook and talk",
-    body: "Just narrate as you cook. Share the ingredients, the steps, but also how you know when something is ready, what to look for, what your mother always said. The more you share, the richer the recipe will be.",
+    heading: "Tell Me Your Recipe",
+    body: "Tell me about a new recipe you've just created, or talk to me while you're cooking detailing the ingredients you've decided to use. I'll listen and capture everything!",
   },
   paste: {
-    heading: "Paste a written recipe",
-    body: "Paste any recipe text — from an old document, a family notebook, a handwritten card you've typed up, or anywhere else. Claude will structure it and pull out any hidden tips or technique notes.",
+    heading: "Copy and Paste a Written Recipe",
+    body: "Did you already have a digital copy of your recipe book somewhere? If so, you can choose to consolidate them here and into their own recipe card by copying the text and pasting them here. I will then structure it and make it pretty!",
   },
   url: {
-    heading: "Import from a website or Instagram",
-    body: "Paste the URL of any publicly accessible recipe page — including Instagram Reels. For Reels, the recipe is pulled from the post caption, so make sure the creator included it there. If a site blocks access, use \"Paste text\" instead.",
+    heading: "Import from a URL",
+    body: "Like a recipe from a blog or Instagram reel you've seen and want to make sure you never lose again? If it's a publicly accessible URL, or the recipe is written in the reel's description, you can paste the URL here and I'll do the rest!",
   },
   photo: {
-    heading: "Photograph a recipe",
-    body: "Take up to 5 photos of a recipe from a book, magazine, or handwritten card — or upload pictures you've already taken. Claude will read across all the pages and build the recipe card for you.",
+    heading: "Snap a Recipe",
+    body: "Seen a recipe in a magazine, book or card and want to keep it in your favourite recipes dashboard? No problem! Take a photo of the recipe or upload photos you've already taken. I will read across all the pages and images you've uploaded and build your recipe card!",
   },
 };
 
@@ -256,9 +256,9 @@ export default function CapturePage() {
 
   const generateLabel =
     urlFetching           ? "Fetching page…" :
-    inputMode === "url"   ? "Import Recipe ✨" :
-    inputMode === "photo" ? `Read Photo${photos.length !== 1 ? "s" : ""} ✨` :
-    "Generate Recipe ✨";
+    inputMode === "url"   ? "Import Recipe" :
+    inputMode === "photo" ? `Read Photo${photos.length !== 1 ? "s" : ""}` :
+    "Generate Recipe";
 
   return (
     <div className="min-h-screen bg-stone-100">
@@ -308,7 +308,6 @@ export default function CapturePage() {
                       : "text-stone-500 hover:text-stone-700"
                   }`}
                 >
-                  <span>{mode.icon}</span>
                   <span className="sm:hidden">{mode.shortLabel}</span>
                   <span className="hidden sm:inline">{mode.label}</span>
                 </button>
@@ -331,7 +330,7 @@ export default function CapturePage() {
                 <textarea
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
-                  placeholder={`Paste your recipe here...\n\nWorks with anything: a URL you've copied text from, an old Word document, a scanned recipe you've typed up, or even a rough list of ingredients and steps.`}
+                  placeholder="Paste your recipe text here — from a URL, spreadsheet, document etc."
                   className="w-full h-72 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm leading-relaxed"
                 />
               )}

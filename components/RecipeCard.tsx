@@ -237,7 +237,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                   </span>
                 )}
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 font-serif">{display.title}</h1>
-                <p className="text-amber-100 text-base sm:text-lg leading-relaxed">{display.description}</p>
+                <p className="text-amber-100 text-sm sm:text-base leading-relaxed line-clamp-2">{display.description}</p>
               </>
             )}
           </div>
@@ -267,16 +267,16 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
                     title="Start a guided cooking session"
                   >
-                    👨‍🍳 Start Cooking
+                    Sous Chef Mode
                   </button>
                 </Link>
                 {onSave && (
                   <button
                     onClick={startEditing}
-                    className="text-amber-300 hover:text-white transition-colors"
+                    className="text-amber-300 hover:text-white transition-colors text-sm font-medium"
                     title="Edit recipe"
                   >
-                    ✏️
+                    Edit
                   </button>
                 )}
                 {onDelete && (
@@ -302,10 +302,10 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                     ) : (
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="text-amber-300 hover:text-white transition-colors"
+                        className="text-amber-300 hover:text-white transition-colors text-sm font-medium"
                         title="Delete recipe"
                       >
-                        🗑
+                        Delete
                       </button>
                     )}
                   </>

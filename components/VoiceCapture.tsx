@@ -142,7 +142,6 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
                 : "bg-amber-600 hover:bg-amber-700"
             }`}
           >
-            <span className="text-xl">{isListening ? "⏹" : "🎙"}</span>
             {isListening ? "Stop Listening" : "Start Narrating"}
           </button>
         ) : (
@@ -178,9 +177,7 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
             // Only update the committed transcript (strip interim)
             onTranscriptChange(e.target.value);
           }}
-          placeholder="Your narration will appear here as you speak, or you can type directly...
-
-For example: 'So I start by browning the onions — and this is key, you want them really golden, almost caramelized, because that's where all the flavour comes from. My mother would say if you rush this step you might as well not bother. I use about two large onions, roughly chopped...'"
+          placeholder="Your narration will appear here, or you can type directly. Speak naturally, as if sharing a recipe with a friend — include your tips, tricks and secrets."
           className="w-full h-64 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 font-mono text-sm leading-relaxed"
         />
         {interimText && (
@@ -191,7 +188,7 @@ For example: 'So I start by browning the onions — and this is key, you want th
       </div>
 
       <div className="flex justify-between items-center text-xs text-stone-400">
-        <span>Speak naturally — ramble, tell stories, share secrets. Claude will find the recipe.</span>
+        <span>Speak naturally — ramble, tell stories, share secrets. I'll find the recipe.</span>
         <span>{transcript.split(/\s+/).filter(Boolean).length} words</span>
       </div>
     </div>

@@ -1,7 +1,7 @@
 # Backlog
 ## Recipe Keeper — Task Tickets
 
-**Last updated:** 2026-03-19
+**Last updated:** 2026-03-30
 Tickets are grouped by phase. Within each phase, ordered by priority (highest first).
 
 ---
@@ -115,6 +115,82 @@ Before marking any ticket complete:
 - Steps toggle button tap area ≥ 44×44px
 - "Start Cooking" waiting screen CTA is already large — verify and keep
 - Waiting screen button tap area ≥ 44×44px
+
+---
+
+## Phase 2.5 — UI Polish: Gastronom First Iteration
+
+### UI-EPIC-001 · Gastronom UI Polish — First Iteration
+**Goal:** Rebrand the app as Gastronom, clean up emoji/icon usage, tighten copy across all screens, add recipe filtering, and polish the sous chef experience.
+
+---
+
+### UI-001 · Dashboard rebrand + category filter
+**Status:** 🔲 Backlog
+**File:** `app/page.tsx`
+**Description:** Rename the app to "Gastronom", update the subtitle and "+ New Recipe" button, and add a category filter pill bar to the dashboard.
+**Acceptance criteria:**
+- Header reads "Gastronom" with subtitle "Your favourite recipes and chef tips and tricks, all in one place"
+- Button reads "+ New Recipe" with no emoji
+- Category filter pills appear when ≥1 recipe exists; only populated categories shown
+- Selecting a category shows only that section; "All" shows everything
+- Filter is independent from search; empty state unaffected
+
+---
+
+### UI-002 · Compact recipe grid cards
+**Status:** 🔲 Backlog
+**File:** `app/page.tsx` (`RecipeListCard` component)
+**Description:** Remove the description paragraph, secrets count, and garlic emoji from recipe grid cards to make them more compact and scannable.
+**Acceptance criteria:**
+- Cards show: category pill + badges → title → `N ingredients · date`
+- No description text, no secrets count, no garlic emoji
+- Category pill, allergen badge, dietary badges, and date all retained
+
+---
+
+### UI-003 · "+ New Recipe" interface — copy refresh & emoji removal
+**Status:** 🔲 Backlog
+**Files:** `app/capture/page.tsx`, `components/VoiceCapture.tsx`
+**Description:** Remove all emoji from tab buttons and generate buttons; rewrite all 4 hint blocks (Narrate, Paste, URL, Photo); update textarea placeholders; replace "Claude" with "I" throughout.
+**Acceptance criteria:**
+- No emoji in any tab button, generate button, or voice input button
+- All 4 hint headings and body texts updated per spec
+- Textarea placeholders updated (narrate + paste)
+- "Claude" replaced with "I" throughout the capture interface
+
+---
+
+### UI-004 · Recipe detail header — description, buttons, entry point
+**Status:** 🔲 Backlog
+**Files:** `components/RecipeCard.tsx`, `lib/prompts.ts`
+**Description:** Cap the description to 2 lines in the header; update AI prompt to generate concise single-sentence descriptions; rename "Start Cooking" to "Sous Chef Mode" and remove emoji; replace ✏️ and 🗑 emoji buttons with "Edit" and "Delete" text buttons.
+**Acceptance criteria:**
+- Description in header is ≤2 lines; new recipes generate concise descriptions
+- Button reads "Sous Chef Mode" with no emoji
+- "Edit" and "Delete" text buttons visible in header; no emoji
+
+---
+
+### UI-005 · Sous Chef waiting screen redesign
+**Status:** 🔲 Backlog
+**File:** `components/SousChefSession.tsx`
+**Description:** Remove chef emojis from the waiting screen; add a Gastronom Sous Chef description paragraph between the recipe title and the "Say Hello Chef" cue.
+**Acceptance criteria:**
+- No chef emoji anywhere on the waiting screen
+- Description paragraph: "No more sauce stains on your beautiful recipe books or cards…" visible between recipe title and cue
+- Layout order: heading → recipe title → description → cue → button
+
+---
+
+### UI-006 · Sous Chef concise opening message
+**Status:** 🔲 Backlog
+**File:** `app/api/sous-chef/route.ts`
+**Description:** Shorten the AI's first message to a single sentence: "Hello, chef! I'm ready to guide you through making [recipe title]. Ready when you are."
+**Acceptance criteria:**
+- First AI message is a single short sentence naming the recipe
+- No "do you have all your ingredients ready?" in the opener
+- Subsequent messages follow all existing PERSONA rules
 
 ---
 

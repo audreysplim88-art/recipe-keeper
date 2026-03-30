@@ -253,10 +253,15 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
 
         {/* Prompt */}
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="text-6xl">👨‍🍳</span>
           <h1 className="text-2xl font-bold text-white">Ready to cook?</h1>
           <p className="text-lg text-amber-300 font-semibold">{recipe.title}</p>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-400 text-sm leading-relaxed max-w-md mt-1">
+            No more sauce stains on your beautiful recipe books or cards, or trying to scroll on
+            your phone or tablet with greasy fingers. Talk to the Gastronom Sous Chef and let it
+            assist you while you work in the kitchen — ask it to guide you through the steps, as
+            well as reminders of ingredients, tips and secrets.
+          </p>
+          <p className="text-gray-400 text-sm">
             Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
             or tap the button below
           </p>
@@ -268,7 +273,6 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           className="flex items-center gap-3 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-semibold text-lg px-8 py-4 rounded-2xl transition-colors shadow-lg"
           style={{ minWidth: 44, minHeight: 44 }}
         >
-          <span>👨‍🍳</span>
           Start Cooking
         </button>
 
