@@ -53,8 +53,11 @@ export async function migrateLocalRecipes(): Promise<{
     }
   }
 
-  // Clear local copies even if some failed — the user can re-add them manually.
-  clearLocalRecipes();
+  // Only clear localStorage once every recipe has been saved successfully.
+  // If any failed we keep localStorage intact so the user doesn't lose data.
+  if (errors === 0) {
+    clearLocalRecipes();
+  }
 
   return { migrated, errors };
 }

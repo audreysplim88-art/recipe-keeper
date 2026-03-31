@@ -76,6 +76,7 @@ export default function HomePage() {
   const [localRecipeCount, setLocalRecipeCount] = useState(0);
   const [migrating, setMigrating] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -87,12 +88,37 @@ export default function HomePage() {
 
   const handleMigrate = useCallback(async () => {
     setMigrating(true);
-    await migrateLocalRecipes();
-    setMigrating(false);
-    setLocalRecipeCount(0);
-    setMigrationDone(true);
-    // Reload from Supabase so the migrated recipes appear
-    setRecipes(await getRecipes());
+    setMigrationError(null);
+    try {
+      const { migrated, errors } = await migrateLocalRecipes();
+      if (errors > 0 && migrated === 0) {
+        // Total failure — keep the banner open so the user can retry
+        setMigrationError(
+          "Import failed. Make sure you're connected and try again. Your recipes are still safely on this device."
+        );
+      } else if (errors > 0) {
+        // Partial — some saved, some didn't
+        setMigrationError(
+          `${migrated} imported, ${errors} failed. Your remaining recipes are still on this device — try again when connected.`
+        );
+        setLocalRecipeCount(errors);
+      } else {
+        // Full success
+        setLocalRecipeCount(0);
+        setMigrationDone(true);
+      }
+    } catch {
+      setMigrationError("Something went wrong. Your recipes are still safely on this device — please try again.");
+    } finally {
+      setMigrating(false);
+      // Reload from Supabase so any successfully migrated recipes appear
+      try {
+        setRecipes(await getRecipes());
+      } catch {
+        // Ignore fetch errors — recipes already loaded
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDismissMigration = useCallback(() => {
@@ -266,14 +292,25 @@ export default function HomePage() {
 
         {/* Migration banner */}
         {localRecipeCount > 0 && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center justify-between gap-4">
+          <div className={`mb-6 rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
+            migrationError ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"
+          }`}>
             <div>
-              <p className="text-sm font-semibold text-amber-800">
-                📦 You have {localRecipeCount} {localRecipeCount === 1 ? "recipe" : "recipes"} saved on this device
-              </p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                Import {localRecipeCount === 1 ? "it" : "them"} to your account to access from any device
-              </p>
+              {migrationError ? (
+                <>
+                  <p className="text-sm font-semibold text-red-800">⚠️ Import issue</p>
+                  <p className="text-xs text-red-600 mt-0.5">{migrationError}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-amber-800">
+                    📦 You have {localRecipeCount} {localRecipeCount === 1 ? "recipe" : "recipes"} saved on this device
+                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Import {localRecipeCount === 1 ? "it" : "them"} to your account to access from any device
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -281,7 +318,7 @@ export default function HomePage() {
                 disabled={migrating}
                 className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors"
               >
-                {migrating ? "Importing…" : "Import"}
+                {migrating ? "Importing…" : migrationError ? "Retry" : "Import"}
               </button>
               <button
                 onClick={handleDismissMigration}
