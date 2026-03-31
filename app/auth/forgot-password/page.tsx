@@ -35,7 +35,12 @@ export default function ForgotPasswordPage() {
     setLoading(false);
 
     if (resetError) {
-      setError(resetError.message || "Something went wrong. Please try again.");
+      const msg = resetError.message?.toLowerCase() ?? "";
+      if (msg.includes("rate limit")) {
+        setError("Too many emails sent recently. Please wait a few minutes and try again.");
+      } else {
+        setError(resetError.message || "Something went wrong. Please try again.");
+      }
     } else {
       setSubmitted(true);
     }
