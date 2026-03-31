@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
     setLoading(false);
 
     if (resetError) {
-      setError("Something went wrong. Please try again.");
+      setError(resetError.message || "Something went wrong. Please try again.");
     } else {
       setSubmitted(true);
     }
