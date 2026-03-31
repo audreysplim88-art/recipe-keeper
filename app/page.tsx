@@ -2,9 +2,61 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getRecipes, saveRecipe } from "@/lib/storage";
 import { Recipe, RecipeCategory, CATEGORY_META, CATEGORY_ORDER, DIETARY_META } from "@/lib/types";
 import { BACKFILL_REQUEST_DELAY_MS } from "@/lib/constants";
+import { API_BASE } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/lib/supabase/client";
+
+/* ── User menu ──────────────────────────────────────────────── */
+function UserMenu() {
+  const { profile } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const supabase = createClient();
+
+  const initials = profile?.first_name ? profile.first_name[0].toUpperCase() : "?";
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/auth/sign-in");
+    router.refresh();
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-sm flex items-center justify-center transition-colors border border-white/30"
+        aria-label="Account menu"
+      >
+        {initials}
+      </button>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          {/* Dropdown */}
+          <div className="absolute right-0 top-11 z-20 bg-white rounded-xl shadow-lg border border-stone-200 min-w-[160px] py-1 overflow-hidden">
+            {profile?.first_name && (
+              <p className="px-4 py-2 text-xs text-stone-400 border-b border-stone-100">
+                Hi, {profile.first_name} 👋
+              </p>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -32,11 +84,11 @@ export default function HomePage() {
     const q = query.trim().toLowerCase();
     if (!q) return recipes;
     return recipes.filter((r) =>
-      r.title?.toLowerCase().includes(q) ||
-      r.description?.toLowerCase().includes(q) ||
-      r.ingredients?.some((i) => i.name?.toLowerCase().includes(q)) ||
-      r.tips?.some((t) => t.content?.toLowerCase().includes(q)) ||
-      r.instructions?.some((s) => s.toLowerCase().includes(q)) ||
+      r.title.toLowerCase().includes(q) ||
+      r.description.toLowerCase().includes(q) ||
+      r.ingredients.some((i) => i.name.toLowerCase().includes(q)) ||
+      r.tips.some((t) => t.content.toLowerCase().includes(q)) ||
+      r.instructions.some((s) => s.toLowerCase().includes(q)) ||
       (r.category && CATEGORY_META[r.category]?.label.toLowerCase().includes(q))
     );
   }, [recipes, query]);
@@ -82,7 +134,7 @@ export default function HomePage() {
     for (let i = 0; i < toProcess.length; i++) {
       const recipe = toProcess[i];
       try {
-        const res = await fetch("/api/classify-recipe", {
+        const res = await fetch(`${API_BASE}/api/classify-recipe`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -120,17 +172,20 @@ export default function HomePage() {
       <header className="bg-amber-800 text-white px-6 py-8">
         <div className="max-w-5xl mx-auto flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-serif font-bold mb-1">Gastronom</h1>
+            <h1 className="text-4xl font-serif font-bold mb-1">Dodol.</h1>
             <p className="text-amber-200 text-sm">
               Your favourite recipes and chef tips and tricks, all in one place
             </p>
           </div>
-          <Link
-            href="/capture"
-            className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0"
-          >
-            + New Recipe
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/capture"
+              className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0"
+            >
+              + New Recipe
+            </Link>
+            <UserMenu />
+          </div>
         </div>
 
         {/* Search bar — only shown once there are recipes */}
@@ -185,7 +240,7 @@ export default function HomePage() {
                     : "border border-stone-300 text-stone-600 hover:border-amber-400 hover:text-amber-700"
                 }`}
               >
-                {CATEGORY_META[cat].emoji} {CATEGORY_META[cat].label}
+                {CATEGORY_META[cat].label}
               </button>
             ))}
           </div>
@@ -319,11 +374,10 @@ function CategorySections({
       <div className="space-y-10">
         {activeSections.map((cat) => {
           const sectionRecipes = byCategory.get(cat)!;
-          const { label, emoji } = CATEGORY_META[cat];
+          const { label } = CATEGORY_META[cat];
           return (
             <section key={cat}>
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl" role="img" aria-label={label}>{emoji}</span>
                 <h2 className="text-xl font-serif font-bold text-stone-700">{label}</h2>
                 <span className="text-stone-400 text-sm">({sectionRecipes.length})</span>
                 <div className="flex-1 h-px bg-stone-200 ml-1" />
@@ -352,7 +406,7 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
         <div className="flex items-center justify-between gap-2 mb-2">
           {meta ? (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-0.5">
-              {meta.emoji} {meta.label}
+              {meta.label}
             </span>
           ) : <span />}
           <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
@@ -398,19 +452,20 @@ function RecipeListCard({ recipe }: { recipe: Recipe }) {
 function EmptyState() {
   return (
     <div className="text-center py-20">
-      <div className="text-7xl mb-6">📖</div>
       <h2 className="text-2xl font-serif font-bold text-stone-600 mb-2">
-        Your recipe box is empty
+        Your recipe library is empty
       </h2>
-      <p className="text-stone-500 mb-8 max-w-sm mx-auto">
-        Start narrating your first recipe. Talk through it as you cook — ingredients,
-        steps, tips, secrets — and we&apos;ll turn it into something beautiful.
+      <p className="text-stone-500 mb-8 max-w-md mx-auto">
+        Start adding your first recipe! You have the option to talk through one with me,
+        copy and paste an existing recipe, share a URL or take a photo of a page in a
+        recipe book. I&apos;ll then turn them into fancy recipe cards! Don&apos;t forget to
+        include your tips, tricks and secrets — I capture those especially well!
       </p>
       <Link
         href="/capture"
         className="inline-flex items-center gap-2 bg-amber-700 hover:bg-amber-800 text-white font-semibold px-8 py-3 rounded-full transition-colors shadow-md"
       >
-        <span>🎙</span> Capture Your First Recipe
+        Capture Your First Recipe
       </Link>
     </div>
   );
