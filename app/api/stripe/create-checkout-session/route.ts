@@ -1,0 +1,69 @@
+import { NextResponse, type NextRequest } from "next/server";
+import Stripe from "stripe";
+import { createClient } from "@/lib/supabase/server";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+const PRICE_IDS: Record<string, string> = {
+  monthly: process.env.STRIPE_MONTHLY_PRICE_ID!,
+  annual: process.env.STRIPE_ANNUAL_PRICE_ID!,
+};
+
+export async function POST(request: NextRequest) {
+  // Authenticate
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Validate plan
+  const { plan } = await request.json();
+  const priceId = PRICE_IDS[plan];
+  if (!priceId) {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+  }
+
+  // Get or create Stripe customer
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", user.id)
+    .single();
+
+  let customerId = sub?.stripe_customer_id as string | undefined;
+
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { supabase_user_id: user.id },
+    });
+    customerId = customer.id;
+
+    // Persist the customer id so we can link webhook events back to this user
+    await supabase
+      .from("subscriptions")
+      .update({ stripe_customer_id: customerId })
+      .eq("user_id", user.id);
+  }
+
+  // Build return URLs
+  const origin = request.headers.get("origin") ?? "https://recipe-keeper-eta.vercel.app";
+  const successUrl = `${origin}/capture?payment=success`;
+  const cancelUrl = `${origin}/capture?payment=cancelled`;
+
+  // Create Stripe Checkout session
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    allow_promotion_codes: true,
+    subscription_data: {
+      metadata: { supabase_user_id: user.id },
+    },
+  });
+
+  return NextResponse.json({ url: session.url });
+}

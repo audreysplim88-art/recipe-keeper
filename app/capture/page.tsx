@@ -6,6 +6,9 @@ import VoiceCapture from "@/components/VoiceCapture";
 import PhotoCapture, { CapturedPhoto } from "@/components/PhotoCapture";
 import { saveRecipe, generateId } from "@/lib/storage";
 import { Recipe, RecipeGenerationResult } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
+import { canCreateRecipe } from "@/lib/subscription";
+import PaywallModal from "@/components/PaywallModal";
 import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
 import { API_BASE } from "@/lib/api";
 import {
@@ -47,6 +50,23 @@ const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
 
 export default function CapturePage() {
   const router = useRouter();
+  const { subscription, refreshProfile } = useAuth();
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Handle return from Stripe Checkout
+  const [paymentStatus, setPaymentStatus] = useState<"success" | "cancelled" | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("payment");
+    if (status === "success" || status === "cancelled") {
+      setPaymentStatus(status);
+      // Refresh subscription state so the paywall re-evaluates
+      if (status === "success") refreshProfile();
+      // Clean the URL
+      router.replace("/capture");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [inputMode, setInputMode] = useState<InputMode>("narrate");
   const [transcript, setTranscript] = useState("");   // narrate + paste share this
   const [urlInput, setUrlInput] = useState("");
@@ -219,6 +239,14 @@ export default function CapturePage() {
 
   const handleSave = async () => {
     if (!generatedRecipe) return;
+
+    // Check paywall before committing the save
+    const allowed = await canCreateRecipe(subscription);
+    if (!allowed) {
+      setShowPaywall(true);
+      return;
+    }
+
     const now = new Date().toISOString();
     const recipe: Recipe = {
       id: generateId(),
@@ -263,6 +291,25 @@ export default function CapturePage() {
 
   return (
     <div className="min-h-screen bg-stone-100">
+      {/* Paywall modal */}
+      {showPaywall && <PaywallModal onClose={() => setShowPaywall(false)} />}
+
+      {/* Payment return banners */}
+      {paymentStatus === "success" && (
+        <div className="bg-green-100 border-b border-green-300 px-6 py-3 flex items-center justify-between gap-4">
+          <p className="text-green-800 text-sm font-medium">
+            🎉 Welcome to Dodol Pro! Your subscription is active — save as many recipes as you like.
+          </p>
+          <button onClick={() => setPaymentStatus(null)} className="text-green-600 hover:text-green-800 text-lg leading-none shrink-0">×</button>
+        </div>
+      )}
+      {paymentStatus === "cancelled" && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center justify-between gap-4">
+          <p className="text-amber-800 text-sm">Checkout cancelled — your recipes are still here whenever you&apos;re ready.</p>
+          <button onClick={() => setPaymentStatus(null)} className="text-amber-600 hover:text-amber-800 text-lg leading-none shrink-0">×</button>
+        </div>
+      )}
+
       {/* Restore banner */}
       {showRestoreBanner && (
         <div className="bg-amber-100 border-b border-amber-300 px-6 py-3 flex items-center justify-between gap-4">
