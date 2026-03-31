@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getRecipes, saveRecipe } from "@/lib/storage";
@@ -9,6 +9,11 @@ import { BACKFILL_REQUEST_DELAY_MS } from "@/lib/constants";
 import { API_BASE } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getLocalRecipes,
+  migrateLocalRecipes,
+  MIGRATION_DISMISSED_KEY,
+} from "@/lib/migration";
 
 /* ── User menu ──────────────────────────────────────────────── */
 function UserMenu() {
@@ -59,11 +64,53 @@ function UserMenu() {
 }
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipesLoading, setRecipesLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<RecipeCategory | null>(null);
 
-  const loadRecipes = () => setRecipes(getRecipes());
+  // ── Migration banner ──────────────────────────────────────────────────────
+  // Shown once if the user has pre-auth recipes in localStorage that haven't
+  // been imported yet.
+  const [localRecipeCount, setLocalRecipeCount] = useState(0);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationDone, setMigrationDone] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const dismissed = localStorage.getItem(MIGRATION_DISMISSED_KEY);
+    if (dismissed) return;
+    const local = getLocalRecipes();
+    if (local.length > 0) setLocalRecipeCount(local.length);
+  }, [user]);
+
+  const handleMigrate = useCallback(async () => {
+    setMigrating(true);
+    await migrateLocalRecipes();
+    setMigrating(false);
+    setLocalRecipeCount(0);
+    setMigrationDone(true);
+    // Reload from Supabase so the migrated recipes appear
+    setRecipes(await getRecipes());
+  }, []);
+
+  const handleDismissMigration = useCallback(() => {
+    localStorage.setItem(MIGRATION_DISMISSED_KEY, "true");
+    setLocalRecipeCount(0);
+  }, []);
+
+  // ── Recipe loading ────────────────────────────────────────────────────────
+  const loadRecipes = useCallback(async () => {
+    try {
+      const data = await getRecipes();
+      setRecipes(data);
+    } catch {
+      // Silently ignore — user may have lost connection
+    } finally {
+      setRecipesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadRecipes();
@@ -76,8 +123,7 @@ export default function HomePage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", loadRecipes);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadRecipes]);
 
   // Filter across title, description, ingredients, tips, instructions, category
   const filtered = useMemo(() => {
@@ -123,7 +169,7 @@ export default function HomePage() {
   const runBackfill = async () => {
     if (backfillRunningRef.current) return;
 
-    const toProcess = getRecipes().filter(
+    const toProcess = (await getRecipes()).filter(
       (r) => r.dietaryTags === undefined && r.allergens === undefined
     );
     if (toProcess.length === 0) return;
@@ -145,7 +191,7 @@ export default function HomePage() {
         });
         if (res.ok) {
           const { dietaryTags, allergens } = await res.json();
-          saveRecipe({ ...recipe, dietaryTags: dietaryTags ?? [], allergens: allergens ?? [] });
+          await saveRecipe({ ...recipe, dietaryTags: dietaryTags ?? [], allergens: allergens ?? [] });
           setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1 }));
         } else {
           setBackfill((prev) => prev && ({ ...prev, done: prev.done + 1, errors: prev.errors + 1 }));
@@ -163,7 +209,7 @@ export default function HomePage() {
 
     backfillRunningRef.current = false;
     setBackfill((prev) => prev && ({ ...prev, running: false }));
-    loadRecipes(); // refresh the list
+    await loadRecipes(); // refresh the list
   };
 
   return (
@@ -217,6 +263,51 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+
+        {/* Migration banner */}
+        {localRecipeCount > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                📦 You have {localRecipeCount} {localRecipeCount === 1 ? "recipe" : "recipes"} saved on this device
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Import {localRecipeCount === 1 ? "it" : "them"} to your account to access from any device
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleMigrate}
+                disabled={migrating}
+                className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors"
+              >
+                {migrating ? "Importing…" : "Import"}
+              </button>
+              <button
+                onClick={handleDismissMigration}
+                className="text-stone-400 hover:text-stone-600 text-lg leading-none"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Migration success */}
+        {migrationDone && (
+          <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-5 py-3 flex items-center justify-between gap-4">
+            <p className="text-sm font-semibold text-green-800">
+              ✅ Recipes imported successfully — they&apos;re now saved to your account
+            </p>
+            <button
+              onClick={() => setMigrationDone(false)}
+              className="text-stone-400 hover:text-stone-600 text-lg leading-none shrink-0"
+              aria-label="Dismiss"
+            >×</button>
+          </div>
+        )}
+
         {/* Category filter pills */}
         {recipes.length > 0 && !query && (
           <div className="flex flex-wrap gap-2 mb-6">
@@ -315,7 +406,17 @@ export default function HomePage() {
           </div>
         )}
 
-        {recipes.length === 0 ? (
+        {recipesLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-stone-200 p-5 h-36 animate-pulse">
+                <div className="h-3 bg-stone-100 rounded w-1/3 mb-3" />
+                <div className="h-5 bg-stone-100 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-stone-100 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : recipes.length === 0 ? (
           <EmptyState />
         ) : isSearching ? (
           <SearchResults recipes={filtered} query={query} />

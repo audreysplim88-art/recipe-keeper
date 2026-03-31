@@ -1,89 +1,111 @@
-import { Recipe } from "./types";
-
-const STORAGE_KEY = "recipe-keeper-recipes";
+import { createClient } from "./supabase/client";
+import { Recipe, RecipeCategory, DietaryTag, AllergenTag } from "./types";
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
 /**
- * Thrown by saveRecipe (and deleteRecipe) when the browser's localStorage
- * quota is exhausted. Callers should catch this and show a user-facing message
- * rather than letting the save fail silently.
+ * Kept for backwards compatibility — callers that catch StorageQuotaError
+ * will still compile. With Supabase storage this is no longer thrown.
  */
 export class StorageQuotaError extends Error {
   constructor() {
-    super(
-      "Your recipe collection has run out of storage space. " +
-        "Please delete a few recipes to make room."
-    );
+    super("Your recipe collection has run out of storage space.");
     this.name = "StorageQuotaError";
   }
 }
 
-/** Returns true for every browser/OS variant of a localStorage quota error. */
-function isQuotaError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  // Chrome/Safari/Edge: DOMException name "QuotaExceededError"
-  // Firefox:            DOMException name "NS_ERROR_DOM_QUOTA_REACHED"
-  // Legacy iOS:         DOMException code 22
-  return (
-    err.name === "QuotaExceededError" ||
-    err.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
-    (err instanceof DOMException && err.code === 22)
-  );
+// ─── Row ↔ Recipe mapping ────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToRecipe(row: any): Recipe {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? "",
+    category: row.category as RecipeCategory,
+    dietaryTags: (row.dietary_tags ?? []) as DietaryTag[],
+    allergens: (row.allergens ?? []) as AllergenTag[],
+    servings: row.servings ?? "",
+    prepTime: row.prep_time ?? "",
+    cookTime: row.cook_time ?? "",
+    ingredients: row.ingredients ?? [],
+    instructions: row.instructions ?? [],
+    tips: row.tips ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-/** Calls localStorage.setItem and converts any quota error into StorageQuotaError. */
-function setItem(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch (err) {
-    if (isQuotaError(err)) throw new StorageQuotaError();
-    throw err;
-  }
+function recipeToRow(recipe: Recipe, userId: string) {
+  return {
+    id: recipe.id,
+    user_id: userId,
+    title: recipe.title,
+    description: recipe.description,
+    category: recipe.category,
+    dietary_tags: recipe.dietaryTags,
+    allergens: recipe.allergens,
+    servings: recipe.servings,
+    prep_time: recipe.prepTime,
+    cook_time: recipe.cookTime,
+    ingredients: recipe.ingredients,
+    instructions: recipe.instructions,
+    tips: recipe.tips,
+    created_at: recipe.createdAt,
+    updated_at: recipe.updatedAt,
+  };
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function getRecipes(): Recipe[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+/** Fetch all recipes for the signed-in user, newest first. */
+export async function getRecipes(): Promise<Recipe[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToRecipe);
 }
 
-export function getRecipe(id: string): Recipe | null {
-  const recipes = getRecipes();
-  return recipes.find((r) => r.id === id) ?? null;
-}
-
-/**
- * Persists a recipe (insert or update).
- * @throws {StorageQuotaError} when the browser's localStorage quota is full.
- */
-export function saveRecipe(recipe: Recipe): void {
-  const recipes = getRecipes();
-  const existingIndex = recipes.findIndex((r) => r.id === recipe.id);
-  if (existingIndex >= 0) {
-    recipes[existingIndex] = recipe;
-  } else {
-    recipes.unshift(recipe);
-  }
-  setItem(STORAGE_KEY, JSON.stringify(recipes));
+/** Fetch a single recipe by id. Returns null if not found. */
+export async function getRecipe(id: string): Promise<Recipe | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? rowToRecipe(data) : null;
 }
 
 /**
- * Removes a recipe by id. No-op if the id does not exist.
- * @throws {StorageQuotaError} when the browser's localStorage quota is full
- *   (unlikely on delete, but possible in edge cases).
+ * Insert or update a recipe.
+ * @throws if the user is not authenticated or Supabase returns an error.
  */
-export function deleteRecipe(id: string): void {
-  const recipes = getRecipes().filter((r) => r.id !== id);
-  setItem(STORAGE_KEY, JSON.stringify(recipes));
+export async function saveRecipe(recipe: Recipe): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("recipes")
+    .upsert(recipeToRow(recipe, user.id), { onConflict: "id" });
+  if (error) throw error;
 }
 
+/** Remove a recipe by id. No-op if it doesn't exist. */
+export async function deleteRecipe(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("recipes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Generate a unique recipe id. */
 export function generateId(): string {
   return `recipe-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }

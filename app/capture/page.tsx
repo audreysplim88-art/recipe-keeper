@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import VoiceCapture from "@/components/VoiceCapture";
 import PhotoCapture, { CapturedPhoto } from "@/components/PhotoCapture";
-import { saveRecipe, generateId, StorageQuotaError } from "@/lib/storage";
+import { saveRecipe, generateId } from "@/lib/storage";
 import { Recipe, RecipeGenerationResult } from "@/lib/types";
 import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
+import { API_BASE } from "@/lib/api";
 import {
   CAPTURE_BACKUP_KEY,
   CAPTURE_BACKUP_INTERVAL_MS,
@@ -28,19 +29,19 @@ const INPUT_MODES: { id: InputMode; label: string; shortLabel: string }[] = [
 const MODE_HINTS: Record<InputMode, { heading: string; body: string }> = {
   narrate: {
     heading: "Tell Me Your Recipe",
-    body: "Tell me about a new recipe you've just created, or talk to me while you're cooking detailing the ingredients you've decided to use. I'll listen and capture everything!",
+    body: "Tell me about a new recipe you've just created or talk to me while you're cooking, detailing the ingredients and methods you're using. I'll listen and capture everything!",
   },
   paste: {
     heading: "Copy and Paste a Written Recipe",
-    body: "Did you already have a digital copy of your recipes living somewhere? If so, you can choose to turn them into their own recipe cards in your recipe library by copying+pasting the text here. I will do the rest!",
+    body: "Already have a digital copy of your recipes? You can choose to add them to your recipe library by copying and pasting the recipe's text here. I will do the rest!",
   },
   url: {
     heading: "Import from a URL",
-    body: "Came across a recipe from a blog or Instagram reel you like and want to make sure you never lose them again? Or perhaps you're just tired of long blogs and ads. If it's a publicly accessible URL, or the recipe is written in the story/reel's description, you can paste the URL here and I'll do my magic!",
+    body: "Came across a recipe from a blog or on social media you want to keep? Or perhaps you're just tired of long blog posts and distracting ads. If it's a publicly accessible URL, or the recipe is written in the social media post's description, you can paste the URL here and I'll do my magic!",
   },
   photo: {
     heading: "Snap a Recipe",
-    body: "Seen a recipe in a magazine, book or card and want to keep it in your recipes library? No problem! Take a photo of the recipe or upload photos you've already taken. I will read across the pages and images and build your recipe card!",
+    body: "Seen a recipe in a magazine, book or physical card and want to keep it in your recipe library? Take a photo of the recipe or drop your photos of it here. I will read across the images and build your card.",
   },
 };
 
@@ -140,7 +141,7 @@ export default function CapturePage() {
     setUrlFetching(true);
 
     try {
-      const res = await fetch("/api/import-url", {
+      const res = await fetch(`${API_BASE}/api/import-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed }),
@@ -151,7 +152,7 @@ export default function CapturePage() {
         return;
       }
       // Hand the extracted text straight off to Claude
-      await runRecipeRequest("/api/generate-recipe", {
+      await runRecipeRequest(`${API_BASE}/api/generate-recipe`, {
         transcript: data.text,
         source: data.source ?? "url",
       });
@@ -197,7 +198,7 @@ export default function CapturePage() {
       return;
     }
     if (inputMode === "photo") {
-      await runRecipeRequest("/api/generate-recipe-from-images", {
+      await runRecipeRequest(`${API_BASE}/api/generate-recipe-from-images`, {
         images: photos.map((p) => ({ base64: p.base64, mediaType: p.mediaType })),
       });
       return;
@@ -208,13 +209,15 @@ export default function CapturePage() {
         : "Please paste some recipe text before generating.");
       return;
     }
-    await runRecipeRequest("/api/generate-recipe", {
+    await runRecipeRequest(`${API_BASE}/api/generate-recipe`, {
       transcript,
       source: inputMode === "narrate" ? "narration" : "text",
     });
   };
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!generatedRecipe) return;
     const now = new Date().toISOString();
     const recipe: Recipe = {
@@ -224,14 +227,12 @@ export default function CapturePage() {
       createdAt: now,
       updatedAt: now,
     };
+    setSaving(true);
     try {
-      saveRecipe(recipe);
-    } catch (err) {
-      if (err instanceof StorageQuotaError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong saving your recipe. Please try again.");
-      }
+      await saveRecipe(recipe);
+    } catch {
+      setError("Something went wrong saving your recipe. Please try again.");
+      setSaving(false);
       return;
     }
     sessionStorage.removeItem(CAPTURE_BACKUP_KEY); // clear safety net after successful save
@@ -288,7 +289,7 @@ export default function CapturePage() {
       {/* Nav */}
       <nav className="bg-amber-800 text-white px-6 py-4 flex items-center gap-4">
         <button onClick={handleNavBack} className="text-amber-200 hover:text-white transition-colors text-sm">
-          ← Recipe Box
+          ← Recipe Library
         </button>
         <h1 className="font-serif text-xl font-bold">Capture a Recipe</h1>
       </nav>
@@ -330,7 +331,7 @@ export default function CapturePage() {
                 <textarea
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Paste your recipe text here — from a URL, spreadsheet, document etc."
+                  placeholder="Paste your recipe text here — from a blog, spreadsheet, Word document etc."
                   className="w-full h-72 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm leading-relaxed"
                 />
               )}
@@ -387,8 +388,8 @@ export default function CapturePage() {
             </h2>
             <p className="text-stone-500">
               {inputMode === "photo"
-                ? "Claude is reading across your photos and pulling the recipe together."
-                : "Claude is finding the recipe, extracting the tips, tricks and secrets."}
+                ? "I'm reading across your photos and pulling the recipe together."
+                : "I'm finding the recipe, extracting the tips, tricks and secrets."}
             </p>
           </div>
         )}
@@ -491,9 +492,10 @@ export default function CapturePage() {
               </button>
               <button
                 onClick={handleSave}
-                className="px-8 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-full transition-colors shadow-md"
+                disabled={saving}
+                className="px-8 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-60 text-white font-semibold rounded-full transition-colors shadow-md"
               >
-                Save Recipe 💾
+                {saving ? "Saving…" : "Save Recipe 💾"}
               </button>
             </div>
           </>
