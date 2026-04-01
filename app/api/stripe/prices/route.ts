@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY ?? "").trim(), {
   apiVersion: "2026-03-25.dahlia",
+  maxNetworkRetries: 1,
+  timeout: 10000,
 });
 
 export interface StripePriceInfo {
