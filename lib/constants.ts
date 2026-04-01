@@ -12,11 +12,6 @@
 /** Number of recipes a free user can save before hitting the paywall. */
 export const FREE_RECIPE_LIMIT = 3;
 
-/** Monthly subscription price in pence (£5.99). Display only — Stripe is authoritative. */
-export const MONTHLY_PRICE_GBP = 5.99;
-
-/** Annual subscription price in pence (£55). Display only — Stripe is authoritative. */
-export const ANNUAL_PRICE_GBP = 55;
 
 
 // ─── AI models ────────────────────────────────────────────────────────────────

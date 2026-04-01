@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Validate plan
-  const { plan } = await request.json();
-  const priceId = PRICE_IDS[plan];
+  // Accept either a raw priceId or a legacy plan key
+  const body = await request.json();
+  const priceId: string = body.priceId ?? PRICE_IDS[body.plan as string];
   if (!priceId) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
