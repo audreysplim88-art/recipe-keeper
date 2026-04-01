@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+  apiVersion: "2026-03-25.dahlia",
+});
 
 const PRICE_IDS: Record<string, string> = {
   monthly: process.env.STRIPE_MONTHLY_PRICE_ID!,

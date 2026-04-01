@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+  apiVersion: "2026-03-25.dahlia",
+});
 
 export interface StripePriceInfo {
   id: string;
@@ -44,19 +46,31 @@ function buildPriceInfo(price: Stripe.Price): StripePriceInfo {
 }
 
 export async function GET() {
-  const [price1, price2] = await Promise.all([
-    stripe.prices.retrieve(process.env.STRIPE_MONTHLY_PRICE_ID!),
-    stripe.prices.retrieve(process.env.STRIPE_ANNUAL_PRICE_ID!),
-  ]);
+  const monthlyId = process.env.STRIPE_MONTHLY_PRICE_ID;
+  const annualId = process.env.STRIPE_ANNUAL_PRICE_ID;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
 
-  const info1 = buildPriceInfo(price1);
-  const info2 = buildPriceInfo(price2);
+  if (!secretKey) return NextResponse.json({ error: "STRIPE_SECRET_KEY not set" }, { status: 500 });
+  if (!monthlyId) return NextResponse.json({ error: "STRIPE_MONTHLY_PRICE_ID not set" }, { status: 500 });
+  if (!annualId) return NextResponse.json({ error: "STRIPE_ANNUAL_PRICE_ID not set" }, { status: 500 });
 
-  // Show the better value plan first (lower monthly equivalent)
-  const [primary, secondary] =
-    info1.monthly_equivalent <= info2.monthly_equivalent
-      ? [info1, info2]
-      : [info2, info1];
+  try {
+    const [price1, price2] = await Promise.all([
+      stripe.prices.retrieve(monthlyId),
+      stripe.prices.retrieve(annualId),
+    ]);
 
-  return NextResponse.json({ primary, secondary } satisfies StripePricesResponse);
+    const info1 = buildPriceInfo(price1);
+    const info2 = buildPriceInfo(price2);
+
+    const [primary, secondary] =
+      info1.monthly_equivalent <= info2.monthly_equivalent
+        ? [info1, info2]
+        : [info2, info1];
+
+    return NextResponse.json({ primary, secondary } satisfies StripePricesResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
