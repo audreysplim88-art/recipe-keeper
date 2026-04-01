@@ -7,10 +7,14 @@
  * before this endpoint is called; we do no server-side image processing.
  */
 
+// Allow up to 60 s on Vercel Pro (vision requests with multiple images can be slow)
+export const maxDuration = 60;
+
 import Anthropic from "@anthropic-ai/sdk";
 import { RecipeGenerationResult } from "@/lib/types";
 import { RECIPE_MODEL, RECIPE_MAX_TOKENS, PHOTO_MAX_COUNT } from "@/lib/constants";
 import { RECIPE_JSON_SCHEMA, RECIPE_SHARED_RULES, stripCodeFences } from "@/lib/prompts";
+import { handleAnthropicError } from "@/lib/api-utils";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -126,16 +130,6 @@ export async function POST(request: Request) {
 
     return Response.json({ recipe: recipeData });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) {
-      return Response.json(
-        { error: "Invalid API key. Please check your ANTHROPIC_API_KEY." },
-        { status: 401 }
-      );
-    }
-    console.error("Image recipe generation error:", error);
-    return Response.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 }
-    );
+    return handleAnthropicError(error, "Image recipe generation");
   }
 }

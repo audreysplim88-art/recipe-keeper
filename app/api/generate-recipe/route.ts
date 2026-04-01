@@ -2,6 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { RecipeGenerationResult } from "@/lib/types";
 import { RECIPE_MODEL, RECIPE_MAX_TOKENS, MIN_TRANSCRIPT_CHARS } from "@/lib/constants";
 import { RECIPE_JSON_SCHEMA, RECIPE_SHARED_RULES, stripCodeFences } from "@/lib/prompts";
+import { handleAnthropicError } from "@/lib/api-utils";
+
+// Allow up to 60 s on Vercel Pro (Claude can take 20–40 s for long recipes)
+export const maxDuration = 60;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -61,10 +65,6 @@ export async function POST(request: Request) {
 
     return Response.json({ recipe: recipeData });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) {
-      return Response.json({ error: "Invalid API key. Please check your ANTHROPIC_API_KEY." }, { status: 401 });
-    }
-    console.error("Recipe generation error:", error);
-    return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    return handleAnthropicError(error, "Recipe generation");
   }
 }

@@ -160,12 +160,17 @@ export default function CapturePage() {
     setError(null);
     setUrlFetching(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20_000);
+
     try {
       const res = await fetch(`${API_BASE}/api/import-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok || data.error) {
         setError(data.error || "Could not fetch that URL.");
@@ -176,8 +181,13 @@ export default function CapturePage() {
         transcript: data.text,
         source: data.source ?? "url",
       });
-    } catch {
-      setError("Network error fetching the URL. Please check your connection.");
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("The URL took too long to load. Please try again or paste the recipe text directly.");
+      } else {
+        setError("Network error fetching the URL. Please check your connection.");
+      }
     } finally {
       setUrlFetching(false);
     }
@@ -187,16 +197,25 @@ export default function CapturePage() {
    * POST to a recipe-generation endpoint and drive the stage transitions.
    * Handles the generating → preview (success) and generating → capture (error)
    * flow in one place so the two generation paths stay in sync.
+   *
+   * A 65-second AbortController timeout ensures the page always recovers if the
+   * server is slow or the connection silently drops.
    */
   const runRecipeRequest = async (url: string, body: Record<string, unknown>) => {
     setError(null);
     setStage("generating");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 65_000);
+
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok || data.error) {
         setError(data.error || "Something went wrong. Please try again.");
@@ -206,8 +225,13 @@ export default function CapturePage() {
       setGeneratedRecipe(data.recipe);
       setRecipeName(data.recipe.title);
       setStage("preview");
-    } catch {
-      setError("Network error. Please check your connection and try again.");
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation timed out — the recipe may have been too long. Please try again, or split it into smaller sections.");
+      } else {
+        setError("Network error. Please check your connection and try again.");
+      }
       setStage("capture");
     }
   };
