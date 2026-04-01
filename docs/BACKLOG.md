@@ -1,350 +1,380 @@
-# Backlog
-## Recipe Keeper — Task Tickets
+# Dodol — Multi-User Platform Backlog
 
-**Last updated:** 2026-03-30
-Tickets are grouped by phase. Within each phase, ordered by priority (highest first).
+**Source PRD:** `docs/PRD-multi-user-platform.md`
+**Last updated:** 2026-03-31
 
----
-
-## Engineering Standards (every ticket)
-
-Before marking any ticket complete:
-- [ ] Feature works end-to-end in the browser
-- [ ] New tests written for any new code paths
-- [ ] `npm test` passes (all green)
-- [ ] Changes committed to git with a descriptive message
-- [ ] `docs/TESTING.md` updated if new test files were added
-- [ ] **Data loss check:** If the ticket touches any page or component where a user creates or edits data, verify that `useUnsavedChangesWarning(isDirty)` is active for the relevant dirty state. Both browser-level navigation (refresh, tab close) and in-app navigation must be guarded.
+Each issue is a thin vertical slice through all layers (schema → API → UI → tests).
+HITL = requires human steps outside the codebase. AFK = fully automatable.
 
 ---
 
-## Phase 1 — AI Sous Chef ✅ All Shipped
+## Issue 1 — Auth: Sign-up, Sign-in, Email Confirmation, Route Protection
+**Type:** AFK
+**Blocked by:** None — can start immediately
 
-### SC-001 · TTS Utility ✅
-**File:** `lib/tts.ts`
-**Description:** `TTSManager` class wrapping `window.speechSynthesis`. Streams Claude text to speech as sentences complete. Handles interruption, iOS cutoff workaround, voice preference.
+### What to build
+End-to-end authentication using Supabase Auth. A new user can create an account with their first name, email, and password. They receive a confirmation email and cannot access the app until confirmed. Existing users can sign in. All authenticated routes redirect unauthenticated visitors to `/auth/sign-in`. On successful sign-up, a `profiles` row (first_name) and a default `subscriptions` row (plan=free) are created.
 
-### SC-002 · Sous Chef API Route ✅
-**File:** `app/api/sous-chef/route.ts`
-**Description:** Stateless multi-turn streaming Claude API. Accepts conversation history + recipe; returns SSE stream. Dynamic system prompt, `max_tokens: 300`, sliding window of 20 messages.
+This is the foundation that every other issue depends on.
 
-### SC-003 · Conversational Voice Input Component ✅
-**File:** `components/CookingVoiceInput.tsx`
-**Description:** Voice input for short turns. Activates/deactivates via `isActive`, auto-sends after 2s silence, calls `onSpeechStart` immediately on user speech, text fallback for non-Chrome.
+### Acceptance criteria
+- [ ] New user can sign up with first name, email, and password
+- [ ] Confirmation email is sent; unconfirmed users see a "check your email" holding screen
+- [ ] User can sign in with email and password
+- [ ] Session persists across browser refresh and Capacitor app restarts
+- [ ] All routes except `/auth/*` redirect unauthenticated users to `/auth/sign-in`
+- [ ] On sign-up, `profiles` row is created with `first_name`
+- [ ] On sign-up, `subscriptions` row is created with `plan='free'`, `status='active'`
+- [ ] Sign-in form shows a clear error for wrong credentials
+- [ ] `AuthContext` exposes `{ user, profile, subscription, loading }` to all client components
 
-### SC-004 · Sous Chef Session Component ✅
-**File:** `components/SousChefSession.tsx`
-**Description:** Main cooking session UI. Full conversation state, TTS orchestration, step tracking, full-screen dark layout.
+### Files
+- `lib/supabase/client.ts` — browser Supabase client
+- `lib/supabase/server.ts` — server Supabase client (for API routes)
+- `lib/supabase/middleware.ts` — session refresh helper
+- `middleware.ts` — route protection
+- `lib/auth-context.tsx` — React context + AuthProvider
+- `app/auth/sign-in/page.tsx`
+- `app/auth/sign-up/page.tsx`
+- `app/auth/callback/route.ts` — Supabase auth redirect handler
+- `app/layout.tsx` — wrap with AuthProvider
 
-### SC-005 · Cook Page Route ✅
-**File:** `app/cook/[id]/page.tsx`
-**Description:** Thin client loading recipe from localStorage. Spinner, 404 state, full-screen session wrapper.
-
-### SC-006 · Start Cooking Entry Point ✅
-**File:** `components/RecipeCard.tsx`
-**Description:** "Start Cooking" button in recipe card header (view mode only).
-
-### SC-007 · Capture Session Auto-Save ✅
-**File:** `app/capture/page.tsx`
-**Description:** sessionStorage auto-save every 30s; restore banner on return; cleared on successful save.
-
----
-
-## Phase 2 — Voice Quality & Mobile (Current)
-
-### VQ-001 · Natural TTS Voice
-**Status:** 🔄 In Progress
-**File:** `app/api/sous-chef/route.ts`
-**Description:** Update the PERSONA block in `buildSystemPrompt()` to ban opening filler phrases and enforce direct, warm responses. Reduce `max_tokens` 300 → 200.
-**Acceptance criteria:**
-- No response begins with "Great!", "Of course!", "Absolutely!", "Sure!", "Certainly!", "Happy to help!", "Sounds good!", or "Perfect!"
-- Every response's first word directly addresses the question or the next action
-- 1–2 sentences for confirmations; 2–3 for multi-part instructions
-- Updated tests in `__tests__/api/sous-chef.test.ts` pass
+### User stories addressed
+- PRD §4.1 Authentication
 
 ---
 
-### VQ-002 · Hello Chef Session Start
-**Status:** 🔄 In Progress
-**File:** `components/SousChefSession.tsx`
-**Description:** Replace the automatic session start (AI speaks on page load) with a user-initiated "waiting" phase. Cook says "Hello Chef" or taps a button to begin. Eliminates confusion between AI output and accidental user input at session start.
-**Acceptance criteria:**
-- On `/cook/[id]` load: AI is silent; "Ready to cook?" waiting screen shown with recipe name
-- Mic is active during waiting but only wake phrases trigger session start
-- Wake phrases: `hello chef`, `hey chef`, `hi chef`, `start`, `begin`, `let's go`, `let's cook`, `let's start`, `ready`
-- Non-matching speech is silently ignored (no false triggers from background noise)
-- Large "Start Cooking" button also starts the session
-- First user message is the wake phrase itself (natural conversation opening)
-- Updated tests in `__tests__/components/SousChefSession.test.tsx` pass
-- **Future-proofing:** Wake-phrase logic in isolated `handleBegin()` function, replaceable with Porcupine/Whisper without touching session UI
+## Issue 2 — Password Reset Flow
+**Type:** AFK
+**Blocked by:** Issue 1
+
+### What to build
+Allow users who have forgotten their password to request a reset email. The link in the email redirects back into the app where they can set a new password.
+
+### Acceptance criteria
+- [ ] "Forgot password?" link on sign-in page navigates to `/auth/forgot-password`
+- [ ] User submits their email and receives a reset link (via Supabase `resetPasswordForEmail`)
+- [ ] Clicking the email link opens the app at `/auth/callback` and then a "set new password" form
+- [ ] On success, user is redirected to sign-in with a confirmation message
+- [ ] Submitting an unknown email shows no error (prevents user enumeration)
+
+### Files
+- `app/auth/forgot-password/page.tsx`
+- `app/auth/reset-password/page.tsx` — new password form
+- `app/auth/callback/route.ts` — updated in Issue 1, handles password reset token type
+
+### User stories addressed
+- PRD §4.1 Authentication
 
 ---
 
-### MOB-001 · iOS Safe Area Insets
-**Status:** 🔄 In Progress
-**Files:** `components/SousChefSession.tsx`, `app/layout.tsx`
-**Description:** Bottom mic area and top bar must clear the iPhone home indicator and status bar when `viewport-fit=cover` is active. Prevents UI from being hidden behind hardware features.
-**Acceptance criteria:**
-- `app/layout.tsx` exports `viewport` with `viewportFit: 'cover'`
-- Bottom mic bar uses `max(1.5rem, env(safe-area-inset-bottom))` for padding-bottom
-- Top bar uses `max(0.75rem, env(safe-area-inset-top))` for padding-top
-- Tested on iPhone Safari: no UI hidden behind home indicator or status bar
+## Issue 3 — Cloud Recipe Storage + localStorage Migration
+**Type:** AFK
+**Blocked by:** Issue 1
+
+### What to build
+Move all recipe persistence from browser localStorage to Supabase PostgreSQL. Recipes are scoped to the authenticated user and available on any device. On the user's first login after account creation, if they have recipes in localStorage on that device, a one-time prompt offers to import them to their account.
+
+This unblocks the paywall (Issue 4), which needs a server-side recipe count.
+
+### Acceptance criteria
+- [ ] All `lib/storage.ts` functions are async and query Supabase instead of localStorage
+- [ ] Row Level Security ensures users can only read/write their own recipes
+- [ ] Creating a recipe on one device is immediately visible when signing in on another
+- [ ] Deleting a recipe removes it from all devices
+- [ ] On first sign-in, if localStorage contains recipes, a banner appears: "You have [N] recipes saved on this device. Import them to your account?"
+- [ ] Confirming migrates all localStorage recipes to Supabase and clears localStorage
+- [ ] Dismissing clears the banner permanently
+- [ ] The allergen backfill feature (auto-classify dietary tags) continues to work as before
+- [ ] `npx tsc --noEmit` passes; existing test suite updated to mock Supabase instead of localStorage
+
+### Database
+```sql
+CREATE TABLE recipes (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL DEFAULT 'other',
+  dietary_tags TEXT[] DEFAULT '{}',
+  allergens TEXT[] DEFAULT '{}',
+  servings TEXT NOT NULL DEFAULT '',
+  prep_time TEXT NOT NULL DEFAULT '',
+  cook_time TEXT NOT NULL DEFAULT '',
+  ingredients JSONB NOT NULL DEFAULT '[]',
+  instructions TEXT[] NOT NULL DEFAULT '{}',
+  tips JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own recipes" ON recipes FOR ALL USING (auth.uid() = user_id);
+```
+
+### Files
+- `lib/storage.ts` — all functions become async, Supabase queries
+- `lib/migration.ts` — `migrateLocalRecipes(userId)`: reads localStorage, upserts to Supabase, clears localStorage
+- `app/page.tsx` — async recipe loading, migration banner
+- `app/capture/page.tsx` — async `saveRecipe`
+- `app/recipe/[id]/RecipePage.tsx` — async `getRecipe`
+- `app/cook/[id]/CookPage.tsx` — async `getRecipe`
+- `components/RecipeCard.tsx` — async save/delete
+
+### User stories addressed
+- PRD §4.2 Cloud Recipe Storage (Cross-Device Sync)
 
 ---
 
-### MOB-002 · Mobile Recipe Steps Drawer
-**Status:** 🔄 In Progress
-**File:** `components/SousChefSession.tsx`
-**Description:** The recipe step sidebar is `hidden lg:flex` — invisible on mobile. Add a "Steps" toggle button in the top bar (mobile only) that opens a full-screen overlay showing all steps with current step highlighted.
-**Acceptance criteria:**
-- "Steps" button visible in top bar on mobile (`lg:hidden`)
-- Tapping shows a fixed overlay panel below the top bar with all steps listed
-- Current step highlighted in amber; completed steps show a checkmark
-- Tapping outside or the "Steps" button again closes the overlay
-- Desktop sidebar (`hidden lg:flex`) unchanged
-- **Future-proofing:** Visual-only design (non-voice-dependent), compatible with future haptic feedback additions
+## Issue 4 — Freemium Paywall + Stripe Checkout
+**Type:** AFK
+**Blocked by:** Issue 3
+
+### What to build
+Enforce the 3-recipe free limit. When a free user attempts to save their 4th recipe, show a paywall modal before the save is committed. The modal presents monthly (£5.99) and annual (£55) plans. On the web, tapping a plan creates a Stripe Checkout session and redirects to the hosted Stripe payment page. On success/cancel, Stripe redirects back to the app. Also provides a Stripe Customer Portal session endpoint for subscription management (used in Issue 7).
+
+Note: iOS native payment (Apple IAP via RevenueCat) is covered in Issue 6. The `isNativeApp()` check in the paywall modal gates which flow to trigger.
+
+### Acceptance criteria
+- [ ] Free users can save up to 3 recipes without any paywall
+- [ ] Attempting to save a 4th recipe (while on free plan) shows `PaywallModal` before the save
+- [ ] PaywallModal clearly shows both plans, prices, and the annual saving (~23%)
+- [ ] Tapping a web plan calls `POST /api/stripe/create-checkout-session` and redirects to Stripe
+- [ ] On successful payment, user is returned to the app at `/capture` or the recipe they were saving
+- [ ] On cancel, user is returned to the paywall modal
+- [ ] `POST /api/stripe/create-portal-session` returns a Stripe Customer Portal URL (used by Issue 7)
+- [ ] Stripe Checkout is skipped and `PaywallModal` shows a native IAP stub when `isNativeApp()` is true (wired up properly in Issue 6)
+- [ ] Free users who hit the limit retain full read access to their existing recipes
+
+### Files
+- `lib/subscription.ts` — `getRecipeCount(userId)`, `hasActiveSubscription(sub)`, `canCreateRecipe(userId)`
+- `lib/platform.ts` — `isNativeApp()`: detects `window.Capacitor?.isNativePlatform()`
+- `lib/constants.ts` — add `FREE_RECIPE_LIMIT = 3`, `STRIPE_MONTHLY_PRICE_ID`, `STRIPE_ANNUAL_PRICE_ID`
+- `components/PaywallModal.tsx`
+- `app/api/stripe/create-checkout-session/route.ts`
+- `app/api/stripe/create-portal-session/route.ts`
+- `app/capture/page.tsx` — add paywall check before `saveRecipe`
+
+### User stories addressed
+- PRD §4.3 Subscription & Paywall
 
 ---
 
-### MOB-003 · Touch Target Sizing
-**Status:** 🔄 In Progress
-**File:** `components/SousChefSession.tsx`
-**Description:** All interactive elements must meet the iOS Human Interface Guideline minimum of 44×44px.
-**Acceptance criteria:**
-- Exit button tap area ≥ 44×44px (use negative margin to expand without visual change)
-- Steps toggle button tap area ≥ 44×44px
-- "Start Cooking" waiting screen CTA is already large — verify and keep
-- Waiting screen button tap area ≥ 44×44px
+## Issue 5 — Stripe Webhook: Subscription Lifecycle → Supabase
+**Type:** AFK
+**Blocked by:** Issue 4
+
+### What to build
+Handle Stripe webhook events to keep the `subscriptions` table in Supabase up to date. When a user pays, upgrades, or cancels, the subscription row is updated and that change propagates across all devices immediately.
+
+Kept separate from Issue 4 so Stripe Checkout can be tested end-to-end before webhook handling is wired up.
+
+### Acceptance criteria
+- [ ] `POST /api/stripe/webhook` verifies the Stripe signature before processing any event
+- [ ] `customer.subscription.created` → sets `plan`, `status`, `stripe_subscription_id`, `current_period_end`
+- [ ] `customer.subscription.updated` → updates `plan`, `status`, `current_period_end`
+- [ ] `customer.subscription.deleted` → sets `plan='free'`, `status='canceled'`
+- [ ] `invoice.payment_failed` → sets `status='past_due'`
+- [ ] A newly paid user can immediately create their 4th recipe without reloading the app
+- [ ] A cancelled subscriber loses create access at `current_period_end`, not immediately
+- [ ] Webhook endpoint returns HTTP 200 for all handled event types; 400 for invalid signatures
+
+### Files
+- `app/api/stripe/webhook/route.ts`
+
+### User stories addressed
+- PRD §4.3 Subscription & Paywall
 
 ---
 
-## Phase 2.5 — UI Polish: Gastronom First Iteration
+## Issue 6 — RevenueCat Native IAP for iOS (Apple In-App Purchase)
+**Type:** HITL
+**Blocked by:** Issue 4
 
-### UI-EPIC-001 · Gastronom UI Polish — First Iteration
-**Goal:** Rebrand the app as Gastronom, clean up emoji/icon usage, tighten copy across all screens, add recipe filtering, and polish the sous chef experience.
+### What to build
+Enable iOS users to subscribe using Apple In-App Purchase. The RevenueCat Capacitor SDK handles the native purchase flow; a RevenueCat webhook updates the Supabase `subscriptions` table identically to the Stripe webhook.
 
----
+**This issue requires manual steps in App Store Connect that cannot be automated.**
 
-### UI-001 · Dashboard rebrand + category filter
-**Status:** 🔲 Backlog
-**File:** `app/page.tsx`
-**Description:** Rename the app to "Gastronom", update the subtitle and "+ New Recipe" button, and add a category filter pill bar to the dashboard.
-**Acceptance criteria:**
-- Header reads "Gastronom" with subtitle "Your favourite recipes and chef tips and tricks, all in one place"
-- Button reads "+ New Recipe" with no emoji
-- Category filter pills appear when ≥1 recipe exists; only populated categories shown
-- Selecting a category shows only that section; "All" shows everything
-- Filter is independent from search; empty state unaffected
+### Human steps required (HITL)
+1. Enrol in Apple Developer Program ($99/year) at developer.apple.com
+2. In App Store Connect, create two In-App Purchase products:
+   - `app.dodol.recipes.monthly` — Auto-Renewable Subscription, £5.99/month
+   - `app.dodol.recipes.annual` — Auto-Renewable Subscription, £55/year
+3. Create a RevenueCat account at revenuecat.com
+4. In RevenueCat: create project, connect App Store app, create "Pro" entitlement, map to both Apple products
+5. Note: `NEXT_PUBLIC_REVENUECAT_IOS_API_KEY`
+6. Set up RevenueCat → webhook → `/api/revenuecat/webhook` in RevenueCat dashboard
 
----
+### Acceptance criteria
+- [ ] On iOS (Capacitor), tapping a plan in `PaywallModal` triggers the native Apple IAP sheet (not Stripe redirect)
+- [ ] Successful purchase updates `subscriptions` table via RevenueCat webhook
+- [ ] `app/api/revenuecat/webhook/route.ts` handles `INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION` events
+- [ ] iOS subscriber can immediately create recipes after purchase
+- [ ] Subscription status is consistent between what RevenueCat reports and what Supabase shows
+- [ ] `isNativeApp()` correctly returns `true` inside Capacitor and `false` on web
 
-### UI-002 · Compact recipe grid cards
-**Status:** 🔲 Backlog
-**File:** `app/page.tsx` (`RecipeListCard` component)
-**Description:** Remove the description paragraph, secrets count, and garlic emoji from recipe grid cards to make them more compact and scannable.
-**Acceptance criteria:**
-- Cards show: category pill + badges → title → `N ingredients · date`
-- No description text, no secrets count, no garlic emoji
-- Category pill, allergen badge, dietary badges, and date all retained
+### Files
+- `app/api/revenuecat/webhook/route.ts`
+- `components/PaywallModal.tsx` — wire up RevenueCat `Purchases.purchaseProduct()` behind `isNativeApp()` guard
+- `lib/platform.ts` — already created in Issue 4
 
----
-
-### UI-003 · "+ New Recipe" interface — copy refresh & emoji removal
-**Status:** 🔲 Backlog
-**Files:** `app/capture/page.tsx`, `components/VoiceCapture.tsx`
-**Description:** Remove all emoji from tab buttons and generate buttons; rewrite all 4 hint blocks (Narrate, Paste, URL, Photo); update textarea placeholders; replace "Claude" with "I" throughout.
-**Acceptance criteria:**
-- No emoji in any tab button, generate button, or voice input button
-- All 4 hint headings and body texts updated per spec
-- Textarea placeholders updated (narrate + paste)
-- "Claude" replaced with "I" throughout the capture interface
+### User stories addressed
+- PRD §4.3 Subscription & Paywall (native mobile)
 
 ---
 
-### UI-004 · Recipe detail header — description, buttons, entry point
-**Status:** 🔲 Backlog
-**Files:** `components/RecipeCard.tsx`, `lib/prompts.ts`
-**Description:** Cap the description to 2 lines in the header; update AI prompt to generate concise single-sentence descriptions; rename "Start Cooking" to "Sous Chef Mode" and remove emoji; replace ✏️ and 🗑 emoji buttons with "Edit" and "Delete" text buttons.
-**Acceptance criteria:**
-- Description in header is ≤2 lines; new recipes generate concise descriptions
-- Button reads "Sous Chef Mode" with no emoji
-- "Edit" and "Delete" text buttons visible in header; no emoji
+## Issue 7 — User Profile Header + Account & Subscription Settings Page
+**Type:** AFK
+**Blocked by:** Issues 1, 5
+
+### What to build
+A persistent header on all authenticated pages showing the user's avatar and "Hey [first_name]". Tapping opens a dropdown menu. An account page lets users edit their first name, change their password, view their current subscription, and manage or cancel it.
+
+### Acceptance criteria
+- [ ] All authenticated pages show a header with: circular avatar (grey person silhouette) + "Hey [first_name]" + chevron
+- [ ] Tapping the avatar opens a dropdown with: Account, Subscription, FAQ & Help, Send Feedback, Log out
+- [ ] "Log out" clears the Supabase session and redirects to `/auth/sign-in`
+- [ ] Account page (`/account`) shows: first name (editable inline), email address (read-only), change password section, current plan + status, "Manage Subscription" button
+- [ ] "Manage Subscription" opens the Stripe Customer Portal (web) or links to iOS subscription settings (native)
+- [ ] Changing first name updates `profiles.first_name` and the header greeting immediately
+- [ ] Change password triggers Supabase `updateUser({ password })` with current-password confirmation
+- [ ] Header fits within iPhone safe area insets; dropdown is touch-friendly (44px min tap targets)
+
+### Files
+- `components/UserHeader.tsx`
+- `app/account/page.tsx`
+- `app/layout.tsx` — add `<UserHeader />` above `{children}`
+
+### User stories addressed
+- PRD §4.4 User Profile & Account Menu
 
 ---
 
-### UI-005 · Sous Chef waiting screen redesign
-**Status:** 🔲 Backlog
-**File:** `components/SousChefSession.tsx`
-**Description:** Remove chef emojis from the waiting screen; add a Gastronom Sous Chef description paragraph between the recipe title and the "Say Hello Chef" cue.
-**Acceptance criteria:**
-- No chef emoji anywhere on the waiting screen
-- Description paragraph: "No more sauce stains on your beautiful recipe books or cards…" visible between recipe title and cue
-- Layout order: heading → recipe title → description → cue → button
+## Issue 8 — First-Use Onboarding Tutorial
+**Type:** AFK
+**Blocked by:** Issue 7
+
+### What to build
+A guided walkthrough on first login using react-joyride speech-bubble tooltips. The tutorial highlights each major feature in order. Users can skip at any step. Completion is persisted so the tutorial never auto-starts again. The tutorial can be manually re-triggered from the FAQ page.
+
+### Acceptance criteria
+- [ ] Tutorial auto-starts when `profile.tutorial_completed === false` (first login after email confirmation)
+- [ ] 7 steps cover: recipe library, add recipe button, capture modes, recipe card, Sous Chef mode, edit/delete, account menu
+- [ ] Each step has a title, description, and is anchored to the correct UI element via `data-tour="..."` attribute
+- [ ] User can skip the tutorial at any step; skipping marks `tutorial_completed = true`
+- [ ] Completing the final step marks `tutorial_completed = true`
+- [ ] Tutorial never auto-starts again after completion or skip
+- [ ] Tutorial can be re-triggered by a "Replay tutorial" link on the FAQ page
+- [ ] Tooltip styling matches the amber/stone colour palette
+
+### `data-tour` attributes to add
+- `data-tour="recipe-library"` — recipe grid on home page
+- `data-tour="add-recipe-btn"` — "Add Recipe" button on home page
+- `data-tour="capture-tabs"` — tab bar on capture page
+- `data-tour="recipe-card"` — recipe card body
+- `data-tour="sous-chef-btn"` — Sous Chef Mode button on recipe card
+- `data-tour="edit-btn"` — Edit button on recipe card
+- `data-tour="account-menu"` — avatar/greeting in header
+
+### Files
+- `components/Tutorial.tsx` — JoyrideTour wrapper
+- `app/page.tsx` — mount `<Tutorial />`, add `data-tour` attrs
+- `app/capture/page.tsx` — add `data-tour` attr
+- `components/RecipeCard.tsx` — add `data-tour` attrs
+- `components/UserHeader.tsx` — add `data-tour` attr
+
+### User stories addressed
+- PRD §4.5 Onboarding Tutorial
 
 ---
 
-### UI-006 · Sous Chef concise opening message
-**Status:** 🔲 Backlog
-**File:** `app/api/sous-chef/route.ts`
-**Description:** Shorten the AI's first message to a single sentence: "Hello, chef! I'm ready to guide you through making [recipe title]. Ready when you are."
-**Acceptance criteria:**
-- First AI message is a single short sentence naming the recipe
-- No "do you have all your ingredients ready?" in the opener
-- Subsequent messages follow all existing PERSONA rules
+## Issue 9 — FAQ & Help Page + Header Shortcut
+**Type:** AFK
+**Blocked by:** Issue 7
+
+### What to build
+A static `/faq` page containing the same content as the onboarding tutorial steps, plus common questions about subscriptions, data privacy, and supported devices. Accessible via "FAQ & Help" in the account dropdown and a persistent "?" icon in the header.
+
+### Acceptance criteria
+- [ ] `/faq` page exists and is accessible to all authenticated users
+- [ ] Page includes all 7 tutorial step descriptions as named sections
+- [ ] Page includes an "About your subscription" section (how to upgrade, cancel, manage)
+- [ ] Page includes a "Your data" section (recipes stored securely)
+- [ ] Page includes a "Supported devices" section (web, iPhone via Dodol app)
+- [ ] Header dropdown "FAQ & Help" link navigates to `/faq`
+- [ ] A "?" icon in the header is always visible as a shortcut to `/faq`
+- [ ] FAQ page includes a "Replay tutorial" button that re-triggers `Tutorial.tsx` from step 1
+
+### Files
+- `app/faq/page.tsx`
+- `components/UserHeader.tsx` — add "?" icon + "FAQ & Help" dropdown item
+
+### User stories addressed
+- PRD §4.5 Onboarding Tutorial
 
 ---
 
-## Phase 3 — Performance & Cooking Session Enhancements
+## Issue 10 — In-App Feedback Form
+**Type:** AFK
+**Blocked by:** Issue 1
 
-> Performance tickets (PERF-001, PERF-002) are highest priority. Latency issues identified from real use should be resolved before new session features are added.
+### What to build
+A modal feedback form reachable from the account dropdown. Users select a type (Bug report, Feature request, General feedback) and write a message. Submissions are stored in Supabase and associated with the user's account.
 
-### PERF-001 · Wake Phrase Response Time
-**Status:** 🔲 Backlog
-**Files:** `components/CookingVoiceInput.tsx`, `components/SousChefSession.tsx`
-**Description:** Saying "Hello Chef" currently takes 1–3 seconds to trigger the session start. Root cause: `CookingVoiceInput` only calls `onSend` on *final* Web Speech API results, which arrive in batches. The wake phrase regex in `SousChefSession` therefore doesn't run until the full utterance is finalised. Fix: pass interim results to a lightweight wake phrase check and call `handleBegin()` the moment the phrase is recognisable — without waiting for the final result.
-**Acceptance criteria:**
-- Session begins within 500ms of the wake phrase being spoken (measured from start of phrase to session state change)
-- False positive rate is negligible — only confident interim matches trigger (phrase is ≥2 words and matches pattern)
-- `handleBegin()` remains the single integration point (future Porcupine/Whisper replacement is not affected)
-- Updated tests in `__tests__/components/SousChefSession.test.tsx` and `__tests__/components/CookingVoiceInput.test.tsx` pass
-- **Future-proofing:** This is a short-term fix. MU-003 (native wake word via Porcupine) is the long-term solution and will replace this entirely via `handleBegin()`.
+### Acceptance criteria
+- [ ] Feedback modal is accessible from: account dropdown ("Send Feedback") and account page
+- [ ] Form has a type selector (Bug report / Feature request / General feedback) and a message textarea
+- [ ] Minimum message length: 20 characters; maximum: 1,000 characters — validated client-side with live character count
+- [ ] Submit button is disabled until validation passes
+- [ ] On successful submission, modal shows a "Thank you!" confirmation and closes after 2 seconds
+- [ ] On failure, modal shows an inline error without closing
+- [ ] Submissions stored in `feedback` table with `user_id`, `type`, `message`, `created_at`
 
----
+### Database
+```sql
+CREATE TABLE feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('bug', 'feature', 'general')),
+  message TEXT NOT NULL CHECK (char_length(message) BETWEEN 20 AND 1000),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "insert feedback" ON feedback FOR INSERT WITH CHECK (true);
+CREATE POLICY "own feedback" ON feedback FOR SELECT USING (auth.uid() = user_id);
+```
 
-### PERF-002 · AI Response Latency
-**Status:** 🔲 Backlog
-**Files:** `app/api/sous-chef/route.ts`, `lib/tts.ts`, `components/SousChefSession.tsx`
-**Description:** Variable latency (up to 3–4s before first spoken word) breaks the cooking flow when something is on the heat. Three optimisations in priority order: (1) an immediate "thinking" cue fires the moment the mic deactivates so silence feels intentional; (2) move `/api/sous-chef` to Next.js Edge Runtime to eliminate cold-start overhead on serverless functions; (3) lower `TTSManager`'s sentence-assembly threshold so speech begins on the first complete clause, not only on a full-sentence boundary.
-**Acceptance criteria:**
-- Immediate visual or audio feedback (e.g. pulsing mic indicator) fires within 100ms of the user stopping speaking
-- `/api/sous-chef` runs on Edge Runtime (`export const runtime = 'edge'`); SSE streaming verified working
-- `TTSManager` begins speaking on the first phrase ≥3 words that ends with a comma, colon, or sentence-ending punctuation — not only full stops
-- First spoken word from AI within 1.5s of user finishing (95th percentile, good network conditions)
-- All existing tests pass; new behaviour covered in `__tests__/lib/tts.test.ts`
-- **Longer-term:** Evaluate streamed TTS APIs (ElevenLabs, OpenAI TTS) that synthesise audio in parallel with Claude token streaming. Evaluate routing short confirmations to a faster/cheaper model tier.
+### Files
+- `components/FeedbackModal.tsx`
+- `app/api/feedback/route.ts`
+- `components/UserHeader.tsx` — "Send Feedback" dropdown item (added alongside Issue 7)
 
----
-
-### CE-001 · Cooking Timers
-**Status:** 🔲 Backlog
-**Description:** User can say "set a 10-minute timer" during a sous chef session. Claude detects the intent, the app starts a visual + audio countdown. On completion, AI notifies the cook.
-
-### CE-002 · Serving-Aware Guidance
-**Status:** 🔲 Backlog
-**Description:** If the recipe has been scaled, the sous chef references scaled quantities ("you're cooking for 8, so use 400g of pasta") rather than base amounts.
-
-### CE-003 · Session Summary
-**Status:** 🔲 Backlog
-**Description:** On completing the final step, show a summary screen: recipe name, session duration, tips reviewed, option to add notes.
-
-### CE-004 · Mid-Session Note Capture
-**Status:** 🔲 Backlog
-**Description:** User can say "add this to my secrets" during cooking. AI captures it and appends to recipe tips after the session ends.
-
-### CE-005 · Resume Interrupted Session
-**Status:** 🔲 Backlog
-**Description:** If user navigates away mid-cook, offer to resume from the last known step on return.
+### User stories addressed
+- PRD §4.6 Feedback Form
 
 ---
 
-## Phase 4 — Recipe Intelligence
+## Dependency Graph
 
-### RI-001 · Recipe Version History
-**Status:** 🔲 Backlog
-**Description:** Track edits to a recipe over time. Diff view between versions. Allow reverting.
+```
+Issue 1 (Auth) ◄─────────────────────────────────────┐
+├── Issue 2 (Password Reset)                          │
+├── Issue 3 (Cloud Storage + Migration)               │
+│   └── Issue 4 (Paywall + Stripe Checkout)           │
+│       ├── Issue 5 (Stripe Webhook)  ────────────────┤
+│       └── Issue 6 (RevenueCat iOS) [HITL]           │
+└── Issue 10 (Feedback Form)                          │
+                                                      ↓
+                             Issue 7 (User Header + Account Page)
+                             ├── Issue 8 (Tutorial)
+                             └── Issue 9 (FAQ Page)
+```
 
-### RI-002 · Ingredient-Based Search
-**Status:** 🔲 Backlog
-**Description:** "What can I make with chicken, lemon and thyme?" — searches by ingredients, not just title/description.
+## Recommended Start Order
 
-### RI-003 · AI-Suggested Improvements
-**Status:** 🔲 Backlog
-**Description:** After a cooking session, Claude reviews the conversation log and suggests additions to tips/secrets.
-
-### RI-004 · Meal Planning
-**Status:** 🔲 Backlog
-**Description:** Suggest a week of dinners from the recipe box. Generate a combined shopping list.
-
----
-
-## Phase 5 — Sharing & Portability
-
-### SP-001 · PDF Export
-**Status:** 🔲 Backlog
-**Description:** Export any recipe as a printable PDF card (beautiful format, tips section included).
-
-### SP-002 · JSON Backup & Restore
-**Status:** 🔲 Backlog
-**Description:** Export full recipe box as JSON. Import from a previously exported file.
-
-### SP-003 · Cloud Sync
-**Status:** 🔲 Backlog
-**Description:** Move recipe storage from localStorage to a backend (e.g. Supabase). Recipes survive across browsers and devices.
-
----
-
-## Phase 6 — Multi-User, Noise Resilience & Accessibility
-
-> These are out of scope for v1–v2 but architecture decisions in Phases 1–2 are intentionally forward-compatible. See PRD-v2.md §7.
-
-### MU-001 · Multi-User Session Architecture (Research Spike)
-**Status:** 🔲 Backlog
-**Description:** Investigate how to support multiple participants in one cooking session (couples, families, friends in the same kitchen). Evaluate: shared conversation state, turn-taking model, speaker identification. Deliverable: architecture ADR.
-
-### MU-002 · Noise-Robust STT Evaluation
-**Status:** 🔲 Backlog
-**Description:** Evaluate Whisper API, Deepgram, and Porcupine as replacements/complements to Web Speech API in noisy kitchen environments (extraction fans, sizzling, multiple speakers). Deliverable: benchmark report + recommendation.
-**Note:** `CookingVoiceInput.tsx` is designed with a clean `onSend`/`onSpeechStart` interface to make this replacement non-breaking.
-
-### MU-003 · Native Wake Word ("Hey Chef")
-**Status:** 🔲 Backlog
-**Description:** Implement always-on wake word detection using Porcupine or equivalent library. Replaces the regex-based `handleBegin()` pattern from VQ-002 with a noise-robust, always-listening alternative.
-**Note:** `handleBegin()` in `SousChefSession.tsx` is designed as the single integration point for this upgrade.
-
-### MU-004 · Haptic Feedback for Noisy Environments
-**Status:** 🔲 Backlog
-**Description:** Use `navigator.vibrate()` to provide haptic cues (step change, session start/end) as a complement to voice in loud kitchens.
-
-### MU-005 · Accessibility
-**Status:** 🔲 Backlog
-**Description:** Screen reader support for the cooking session UI. High-contrast mode. Larger text option. All interactive elements with proper ARIA labels.
-
-### MU-006 · Multi-Language Support
-**Status:** 🔲 Backlog
-**Description:** TTS and STT in French, Spanish, Italian etc. Claude system prompt and session in the user's preferred language.
-
-### MU-007 · Progressive Web App
-**Status:** 🔲 Backlog
-**Description:** Make Recipe Keeper installable on home screen (iOS and Android). Service worker for offline recipe access (no sous chef without network).
-
----
-
-## Phase 7 — Accounts & Sync
-
-### AC-001 · User Accounts
-**Status:** 🔲 Backlog
-**Description:** Sign-up / login. Auth provider TBD (Supabase Auth, Clerk, etc.).
-
-### AC-002 · Cloud Recipe Storage
-**Status:** 🔲 Backlog
-**Description:** Migrate recipes from localStorage to a cloud database. Recipes survive across browsers and devices.
-
-### AC-003 · Cross-Device Sync
-**Status:** 🔲 Backlog
-**Description:** Changes on one device reflected on all others in near-real time.
-
-### AC-004 · Shared Recipe Collections
-**Status:** 🔲 Backlog
-**Description:** Family recipe box — multiple users sharing and contributing to the same collection.
-
----
-
-## Bug Fixes & Improvements (Ongoing)
-
-### BUG-001 · Speech Recognition Network Error Handling
-**Status:** 🔲 Planned
-**Description:** `VoiceCapture.tsx` logs a console error on network speech errors but doesn't show meaningful UI or attempt clean recovery.
-
-### IMP-001 · Category Backfill for Existing Recipes
-**Status:** 🔲 Planned
-**Description:** Existing recipes without a category should be offered AI classification via the dashboard backfill banner.
+1. **Issue 1** — unblocks everything
+2. **Issues 2, 3, 10** — can run in parallel once Issue 1 is done
+3. **Issue 4** → **Issue 5** — sequential (Checkout before webhook)
+4. **Issue 6** — can run in parallel with Issue 5 once HITL steps are complete
+5. **Issue 7** — once Issues 1 and 5 are done
+6. **Issues 8 and 9** — in parallel once Issue 7 is done

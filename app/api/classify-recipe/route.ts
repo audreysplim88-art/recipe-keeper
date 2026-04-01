@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DietaryTag, AllergenTag } from "@/lib/types";
 import { CLASSIFY_MODEL, CLASSIFY_MAX_TOKENS } from "@/lib/constants";
+import { stripCodeFences } from "@/lib/prompts";
+import { handleAnthropicError } from "@/lib/api-utils";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -49,15 +51,13 @@ export async function POST(request: Request) {
 
     let result: { dietaryTags: DietaryTag[]; allergens: AllergenTag[] };
     try {
-      const cleaned = textBlock.text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      result = JSON.parse(cleaned);
+      result = JSON.parse(stripCodeFences(textBlock.text));
     } catch {
       return Response.json({ error: "Failed to parse classification." }, { status: 500 });
     }
 
     return Response.json(result);
   } catch (error) {
-    console.error("Classification error:", error);
-    return Response.json({ error: "Something went wrong." }, { status: 500 });
+    return handleAnthropicError(error, "Classification");
   }
 }

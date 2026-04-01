@@ -344,7 +344,7 @@ export default function PhotoCapture({ photos, onPhotosChange, maxPhotos = PHOTO
       {/* ── Status hint ──────────────────────────────────────────────────── */}
       <p className="text-xs text-stone-400">
         {photos.length === 0
-          ? `Recipes spanning multiple pages? Add up to ${maxPhotos} photos and Claude will read across them all.`
+          ? `Recipes spanning multiple pages? Add up to ${maxPhotos} photos and I will read across them all.`
           : photos.length >= maxPhotos
           ? `${maxPhotos} photos added — ready to extract the recipe.`
           : `${photos.length} photo${photos.length !== 1 ? "s" : ""} added · up to ${maxPhotos - photos.length} more allowed`}

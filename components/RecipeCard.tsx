@@ -9,6 +9,7 @@ import {
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
+import { parseServings, parseAmount, formatAmount, scaleAmount } from "@/lib/scaling";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -31,83 +32,8 @@ const tipCategoryIcon: Record<Tip["category"], string> = {
 };
 
 // Reusable inline styles for edit inputs
-const inputCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400";
-const textareaCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none";
-
-// ─── Serving size calculator helpers ────────────────────────────────────────
-
-/** Extract the first number from a servings string e.g. "4 servings" → 4, "6-8 people" → 6 */
-function parseServings(servings: string): number | null {
-  const match = servings.match(/(\d+(?:\.\d+)?)/);
-  if (!match) return null;
-  const n = parseFloat(match[1]);
-  return isNaN(n) || n <= 0 ? null : n;
-}
-
-/** Parse an amount string to a decimal number. Returns null if not numeric. */
-function parseAmount(amount: string): number | null {
-  const trimmed = amount.trim();
-
-  // Mixed number: "2 1/2"
-  const mixed = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
-
-  // Simple fraction: "1/2"
-  const fraction = trimmed.match(/^(\d+)\/(\d+)$/);
-  if (fraction) {
-    const den = parseInt(fraction[2]);
-    if (den === 0) return null;
-    return parseInt(fraction[1]) / den;
-  }
-
-  // Plain integer or decimal: "3", "1.5"
-  const num = parseFloat(trimmed);
-  return isNaN(num) ? null : num;
-}
-
-/** Convert a decimal back to a readable amount string using nice fractions. */
-function formatAmount(value: number): string {
-  if (value <= 0) return "0";
-
-  // Common fractions as [numerator, denominator, display]
-  const FRACTIONS: [number, number, string][] = [
-    [1, 8, "1/8"], [1, 4, "1/4"], [1, 3, "1/3"], [3, 8, "3/8"],
-    [1, 2, "1/2"], [5, 8, "5/8"], [2, 3, "2/3"], [3, 4, "3/4"], [7, 8, "7/8"],
-  ];
-
-  const whole = Math.floor(value);
-  const decimal = value - whole;
-
-  // Close enough to a whole number
-  if (decimal < 0.05) return String(whole === 0 ? Math.round(value) : whole);
-  if (decimal > 0.95) return String(whole + 1);
-
-  // Find the closest common fraction
-  let bestLabel = "";
-  let bestError = Infinity;
-  for (const [num, den, label] of FRACTIONS) {
-    const error = Math.abs(decimal - num / den);
-    if (error < bestError) {
-      bestError = error;
-      bestLabel = label;
-    }
-  }
-
-  if (bestError < 0.07 && bestLabel) {
-    return whole > 0 ? `${whole} ${bestLabel}` : bestLabel;
-  }
-
-  // Fall back to one decimal place
-  return value.toFixed(1).replace(/\.0$/, "");
-}
-
-/** Scale an amount string by a multiplier. Returns { scaled, wasScaled }. */
-function scaleAmount(amount: string, multiplier: number): { display: string; scaled: boolean } {
-  if (multiplier === 1) return { display: amount, scaled: false };
-  const parsed = parseAmount(amount);
-  if (parsed === null) return { display: amount, scaled: false };
-  return { display: formatAmount(parsed * multiplier), scaled: true };
-}
+const inputCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400";
+const textareaCls = "w-full bg-white border border-amber-300 rounded-lg px-2 py-1 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none";
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -224,7 +150,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                 >
                   {CATEGORY_ORDER.map((cat) => (
                     <option key={cat} value={cat}>
-                      {CATEGORY_META[cat].emoji} {CATEGORY_META[cat].label}
+                      {CATEGORY_META[cat].label}
                     </option>
                   ))}
                 </select>
@@ -233,11 +159,10 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
               <>
                 {display.category && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-200 border border-amber-400/50 rounded-full px-2.5 py-0.5 mb-3">
-                    {CATEGORY_META[display.category].emoji} {CATEGORY_META[display.category].label}
+                    {CATEGORY_META[display.category].label}
                   </span>
                 )}
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 font-serif">{display.title}</h1>
-                <p className="text-amber-100 text-sm sm:text-base leading-relaxed line-clamp-2">{display.description}</p>
               </>
             )}
           </div>

@@ -188,7 +188,7 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
       </div>
 
       <div className="flex justify-between items-center text-xs text-stone-400">
-        <span>Speak naturally — ramble, tell stories, share secrets. I'll find the recipe.</span>
+        <span>Speak naturally — ramble, tell stories, share secrets. I'll visualise your recipe.</span>
         <span>{transcript.split(/\s+/).filter(Boolean).length} words</span>
       </div>
     </div>

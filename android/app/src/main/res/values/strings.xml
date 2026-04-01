@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dodol</string>
+    <string name="title_activity_main">Dodol</string>
+    <string name="package_name">app.dodol.recipes</string>
+    <string name="custom_url_scheme">app.dodol.recipes</string>
+</resources>

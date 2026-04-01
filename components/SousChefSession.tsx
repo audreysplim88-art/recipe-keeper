@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Recipe } from "@/lib/types";
+import { API_BASE } from "@/lib/api";
 import { TTSManager } from "@/lib/tts";
 import CookingVoiceInput from "@/components/CookingVoiceInput";
 
@@ -117,7 +118,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
       let fullResponse = "";
 
       try {
-        const res = await fetch("/api/sous-chef", {
+        const res = await fetch(`${API_BASE}/api/sous-chef`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: updatedMessages, recipe }),
@@ -256,10 +257,10 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           <h1 className="text-2xl font-bold text-white">Ready to cook?</h1>
           <p className="text-lg text-amber-300 font-semibold">{recipe.title}</p>
           <p className="text-gray-400 text-sm leading-relaxed max-w-md mt-1">
-            No more sauce stains on your beautiful recipe books or cards, or trying to scroll on
-            your phone or tablet with greasy fingers. Talk to the Gastronom Sous Chef and let it
-            assist you while you work in the kitchen — ask it to guide you through the steps, as
-            well as reminders of ingredients, tips and secrets.
+            No more stains on your beautiful recipe books or cards, or trying to scroll through a
+            recipe on your screen with sticky fingers. Talk to the Dodol Sous Chef and let it assist
+            you while you work in the kitchen — ask it to guide you through cooking steps and
+            ingredients, as well as remind you about helpful tips and tricks.
           </p>
           <p className="text-gray-400 text-sm">
             Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
@@ -300,23 +301,23 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
     <div className="fixed inset-0 bg-gray-950 text-white flex flex-col overflow-hidden">
       {/* ── Top bar ── */}
       <div
-        className="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800 shrink-0"
+        className="flex items-center gap-2 px-4 py-3 bg-gray-900 border-b border-gray-800 shrink-0"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
         <button
           onClick={onExit}
-          className="p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          className="shrink-0 p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
           style={{ minWidth: 44, minHeight: 44 }}
           aria-label="Exit cooking session"
         >
           ← Exit
         </button>
-        <div className="text-center">
-          <p className="text-sm font-semibold text-white truncate max-w-[200px] sm:max-w-xs">
+        <div className="flex-1 min-w-0 text-center">
+          <p className="text-sm font-semibold text-white truncate">
             {recipe.title}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="shrink-0 flex items-center gap-2">
           {/* Steps toggle — mobile only */}
           <button
             onClick={() => setShowMobileSteps((v) => !v)}
@@ -326,13 +327,13 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           >
             Steps
           </button>
-          <div className="text-sm text-gray-400">
+          <div className="text-xs text-gray-400 text-right">
             {currentStep > 0 ? (
               <span aria-label={`Step ${currentStep} of ${totalSteps}`}>
-                Step {currentStep} / {totalSteps}
+                {currentStep} / {totalSteps}
               </span>
             ) : (
-              <span className="text-amber-400">Getting ready</span>
+              <span className="text-amber-400">Ready</span>
             )}
           </div>
         </div>
@@ -348,7 +349,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           aria-label="Recipe steps"
         >
           <div
-            className="bg-gray-900 border-b border-gray-800 p-4 overflow-y-auto max-h-full"
+            className="bg-gray-900 border-b border-gray-800 p-4 overflow-y-auto overflow-x-hidden max-h-full w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
@@ -381,7 +382,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
                     >
                       {isDone ? "✓" : stepNum}
                     </span>
-                    {step}
+                    <span className="min-w-0 flex-1">{step}</span>
                   </li>
                 );
               })}
@@ -491,7 +492,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
                   >
                     {isDone ? "✓" : stepNum}
                   </span>
-                  {step}
+                  <span className="min-w-0 flex-1">{step}</span>
                 </li>
               );
             })}
