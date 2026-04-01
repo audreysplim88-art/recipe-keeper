@@ -534,8 +534,8 @@ function CategorySections({
 /* ── Recipe card ────────────────────────────────────────────── */
 function RecipeListCard({ recipe }: { recipe: Recipe }) {
   const meta = CATEGORY_META[recipe.category];
-  const dietaryTags = recipe.dietaryTags;
-  const allergenCount = recipe.allergens.length;
+  const dietaryTags = recipe.dietaryTags ?? [];
+  const allergenCount = (recipe.allergens ?? []).length;
 
   return (
     <Link href={`/recipe/${recipe.id}`}>

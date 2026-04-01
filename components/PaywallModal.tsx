@@ -26,13 +26,20 @@ export default function PaywallModal({ onClose }: Props) {
 
   // ── Fetch live prices from Stripe ──────────────────────────────────────────
   const [prices, setPrices] = useState<StripePricesResponse | null>(null);
-  const [pricesError, setPricesError] = useState(false);
+  const [pricesError, setPricesError] = useState<string | false>(false);
 
   useEffect(() => {
     fetch("/api/stripe/prices")
-      .then((r) => r.json())
-      .then((data) => setPrices(data))
-      .catch(() => setPricesError(true));
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !data?.primary || !data?.secondary) {
+          // Surface the Stripe error message to help diagnose config issues
+          setPricesError(data?.error ?? "Could not load pricing");
+          return;
+        }
+        setPrices(data as StripePricesResponse);
+      })
+      .catch((err) => setPricesError(err?.message ?? "Network error"));
   }, []);
 
   // ── Selected plan (default to primary / better-value) ─────────────────────
@@ -125,7 +132,7 @@ export default function PaywallModal({ onClose }: Props) {
           {/* Plan selector */}
           {pricesError ? (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5">
-              Could not load pricing. Please try again later.
+              {typeof pricesError === "string" ? pricesError : "Could not load pricing. Please try again later."}
             </p>
           ) : !prices ? (
             /* Loading skeleton */

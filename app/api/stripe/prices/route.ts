@@ -48,9 +48,9 @@ function buildPriceInfo(price: Stripe.Price): StripePriceInfo {
 }
 
 export async function GET() {
-  const monthlyId = process.env.STRIPE_MONTHLY_PRICE_ID;
-  const annualId = process.env.STRIPE_ANNUAL_PRICE_ID;
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID ?? "").trim();
+  const annualId = (process.env.STRIPE_ANNUAL_PRICE_ID ?? "").trim();
+  const secretKey = (process.env.STRIPE_SECRET_KEY ?? "").trim();
 
   if (!secretKey) return NextResponse.json({ error: "STRIPE_SECRET_KEY not set" }, { status: 500 });
   if (!monthlyId) return NextResponse.json({ error: "STRIPE_MONTHLY_PRICE_ID not set" }, { status: 500 });
