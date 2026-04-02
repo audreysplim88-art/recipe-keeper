@@ -122,7 +122,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
   const display = isEditing ? draft : recipe;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto" data-tour="recipe-card">
       {/* Header */}
       <div className="bg-amber-700 text-white rounded-t-2xl p-5 sm:p-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:gap-4">
@@ -187,7 +187,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
             ) : (
               <div className="flex items-center gap-3">
                 {/* Start Cooking button — links to the sous chef session */}
-                <Link href={`/cook/${recipe.id}`}>
+                <Link href={`/cook/${recipe.id}`} data-tour="sous-chef-btn">
                   <button
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors"
                     title="Start a guided cooking session"
@@ -198,6 +198,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
                 {onSave && (
                   <button
                     onClick={startEditing}
+                    data-tour="edit-btn"
                     className="text-amber-300 hover:text-white transition-colors text-sm font-medium"
                     title="Edit recipe"
                   >

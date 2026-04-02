@@ -14,6 +14,7 @@ import {
   migrateLocalRecipes,
   MIGRATION_DISMISSED_KEY,
 } from "@/lib/migration";
+import OnboardingTour from "@/components/OnboardingTour";
 
 /* ── User menu ──────────────────────────────────────────────── */
 function UserMenu() {
@@ -31,7 +32,7 @@ function UserMenu() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" data-tour="account-menu">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-sm flex items-center justify-center transition-colors border border-white/30"
@@ -71,9 +72,29 @@ function UserMenu() {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const supabase = createClient();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
+
+  // ── Onboarding tour ─────────────────────────────────────────────────────────
+  const [tourActive, setTourActive] = useState(false);
+
+  useEffect(() => {
+    if (profile && !profile.tutorial_completed && !recipesLoading) {
+      setTourActive(true);
+    }
+  }, [profile, recipesLoading]);
+
+  async function handleTourComplete() {
+    setTourActive(false);
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .update({ tutorial_completed: true })
+      .eq("id", user.id);
+    await refreshProfile();
+  }
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<RecipeCategory | null>(null);
 
@@ -259,6 +280,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <Link
               href="/capture"
+              data-tour="add-recipe-btn"
               className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0"
             >
               + New Recipe
@@ -295,7 +317,7 @@ export default function HomePage() {
         )}
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-4 py-8" data-tour="recipe-library">
 
         {/* Migration banner */}
         {localRecipeCount > 0 && (
@@ -468,6 +490,8 @@ export default function HomePage() {
           <CategorySections byCategory={byCategory} totalCount={recipes.length} filterCategory={filterCategory} />
         )}
       </main>
+
+      <OnboardingTour run={tourActive} onComplete={handleTourComplete} />
     </div>
   );
 }

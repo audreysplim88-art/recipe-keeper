@@ -369,7 +369,7 @@ export default function CapturePage() {
         {stage === "capture" && (
           <>
             {/* Input mode tabs */}
-            <div className="flex gap-1 bg-stone-200 rounded-xl p-1 mb-6">
+            <div className="flex gap-1 bg-stone-200 rounded-xl p-1 mb-6" data-tour="capture-tabs">
               {INPUT_MODES.map((mode) => (
                 <button
                   key={mode.id}
