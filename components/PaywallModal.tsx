@@ -75,8 +75,9 @@ export default function PaywallModal({ onClose }: Props) {
         return;
       }
       window.location.href = data.url;
-    } catch {
-      setCheckoutError("Network error. Please check your connection and try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCheckoutError(`Network error: ${msg}`);
     } finally {
       setLoading(false);
     }

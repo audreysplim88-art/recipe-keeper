@@ -38,8 +38,11 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/auth");
 
-  // Redirect unauthenticated users to sign-in (except on auth routes)
-  if (!user && !isAuthRoute) {
+  // Stripe webhook must be reachable without a session cookie
+  const isPublicApiRoute = pathname === "/api/stripe/webhook";
+
+  // Redirect unauthenticated users to sign-in (except on auth routes and public API routes)
+  if (!user && !isAuthRoute && !isPublicApiRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth/sign-in";
     return NextResponse.redirect(redirectUrl);
