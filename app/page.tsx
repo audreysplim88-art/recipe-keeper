@@ -50,9 +50,16 @@ function UserMenu() {
                 Hi, {profile.first_name} 👋
               </p>
             )}
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="block w-full px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
+            >
+              Account
+            </Link>
             <button
               onClick={handleSignOut}
-              className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
+              className="w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-colors border-t border-stone-100"
             >
               Sign out
             </button>

@@ -33,10 +33,15 @@ export async function POST(request: NextRequest) {
 
   const origin = request.headers.get("origin") ?? "https://recipe-keeper-eta.vercel.app";
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${origin}/account`,
-  });
-
-  return NextResponse.json({ url: portalSession.url });
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${origin}/account`,
+    });
+    return NextResponse.json({ url: portalSession.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[create-portal-session]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
