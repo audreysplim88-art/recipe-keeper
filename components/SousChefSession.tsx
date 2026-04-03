@@ -238,6 +238,37 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
   // Last few conversation messages for the log
   const recentMessages = messages.slice(-6);
 
+  // ── Mic permission ────────────────────────────────────────────────────────
+  const [micPermission, setMicPermission] = useState<"prompt" | "granted" | "denied">("prompt");
+
+  useEffect(() => {
+    // Silently check current permission state without triggering a prompt
+    if (typeof navigator === "undefined") { setMicPermission("prompt"); return; }
+
+    // Try the Permissions API first (non-intrusive check)
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: "microphone" as PermissionName })
+        .then((result) => {
+          if (result.state === "granted") setMicPermission("granted");
+          else if (result.state === "denied") setMicPermission("denied");
+          else setMicPermission("prompt"); // "prompt" = not yet asked
+        })
+        .catch(() => setMicPermission("prompt")); // Safari may not support this — show button
+    } else {
+      setMicPermission("prompt"); // Permissions API not available — show button
+    }
+  }, []);
+
+  const requestMicPermission = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setMicPermission("granted");
+    } catch {
+      setMicPermission("denied");
+    }
+  }, []);
+
   // ── Waiting screen ──────────────────────────────────────────────────────────
   if (phase === "waiting") {
     return (
@@ -262,10 +293,44 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
             you while you work in the kitchen — ask it to guide you through cooking steps and
             ingredients, as well as remind you about helpful tips and tricks.
           </p>
-          <p className="text-gray-400 text-sm">
-            Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
-            or tap the button below
-          </p>
+
+          {micPermission === "granted" ? (
+            <p className="text-gray-400 text-sm">
+              Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
+              or tap the button below
+            </p>
+          ) : micPermission === "denied" ? (
+            <div className="flex flex-col items-center gap-3 mt-2 bg-gray-900 rounded-2xl p-5">
+              <p className="text-red-400 text-sm font-medium">
+                🎙 Microphone access was denied
+              </p>
+              <p className="text-gray-400 text-xs max-w-xs leading-relaxed">
+                The Sous Chef needs your microphone to listen while you cook.
+                Please enable it in your device settings:
+              </p>
+              <p className="text-white text-xs font-medium">
+                Settings → Safari → Microphone → Allow
+              </p>
+              <button
+                onClick={requestMicPermission}
+                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm mt-1"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 mt-2">
+              <p className="text-gray-400 text-sm">
+                The Sous Chef needs microphone access to listen while you cook
+              </p>
+              <button
+                onClick={requestMicPermission}
+                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold px-6 py-3 rounded-full transition-colors"
+              >
+                <span>🎙</span> Enable Microphone
+              </button>
+            </div>
+          )}
         </div>
 
         {/* CTA button */}
@@ -278,20 +343,24 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
         </button>
 
         {/* Mic listening indicator */}
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          Listening for wake phrase…
-        </div>
+        {micPermission === "granted" && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            Listening for wake phrase…
+          </div>
+        )}
 
         {/* Voice input active during waiting for wake phrase detection */}
-        <div className="sr-only">
-          <CookingVoiceInput
-            isActive={isListening}
-            onSend={handleSend}
-            onSpeechStart={handleSpeechStart}
-            disabled={false}
-          />
-        </div>
+        {micPermission === "granted" && (
+          <div className="sr-only">
+            <CookingVoiceInput
+              isActive={isListening}
+              onSend={handleSend}
+              onSpeechStart={handleSpeechStart}
+              disabled={false}
+            />
+          </div>
+        )}
       </div>
     );
   }

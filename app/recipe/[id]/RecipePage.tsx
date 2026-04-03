@@ -54,9 +54,9 @@ export default function RecipePage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="min-h-screen bg-stone-100">
-      <nav className="bg-amber-800 text-white px-6 py-4 flex items-center gap-4">
+      <nav className="bg-amber-800 text-white px-4 sm:px-6 pb-4 flex items-center gap-3" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
         <Link href="/" className="text-amber-200 hover:text-white transition-colors text-sm">
-          ← Recipe Library
+          ← Back
         </Link>
       </nav>
       <div className="max-w-4xl mx-auto px-4 py-8">

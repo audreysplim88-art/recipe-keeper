@@ -269,19 +269,19 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-stone-100">
       {/* Header */}
-      <header className="bg-amber-800 text-white px-6 py-8">
-        <div className="max-w-5xl mx-auto flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-serif font-bold mb-1">Dodol.</h1>
-            <p className="text-amber-200 text-sm">
+      <header className="bg-amber-800 text-white px-4 sm:px-6 pb-8" style={{ paddingTop: "max(2rem, env(safe-area-inset-top))" }}>
+        <div className="max-w-5xl mx-auto flex items-end justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-1">Dodol.</h1>
+            <p className="text-amber-200 text-xs sm:text-sm">
               Your favourite recipes and chef tips and tricks, all in one place
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               href="/capture"
               data-tour="add-recipe-btn"
-              className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0"
+              className="flex items-center gap-2 bg-white text-amber-800 font-semibold px-4 sm:px-5 py-2.5 rounded-full hover:bg-amber-50 transition-colors shadow-md shrink-0 text-sm"
             >
               + New Recipe
             </Link>
@@ -301,7 +301,7 @@ export default function HomePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search recipes, ingredients, tips…"
-                className="w-full pl-11 pr-10 py-3 rounded-xl bg-white/95 text-stone-800 placeholder-stone-400 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                className="w-full pl-11 pr-10 py-3 rounded-xl bg-white/95 text-stone-800 placeholder-stone-400 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400 text-base"
               />
               {query && (
                 <button
@@ -317,7 +317,7 @@ export default function HomePage() {
         )}
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8" data-tour="recipe-library">
+      <main className="max-w-5xl mx-auto px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]" data-tour="recipe-library">
 
         {/* Migration banner */}
         {localRecipeCount > 0 && (

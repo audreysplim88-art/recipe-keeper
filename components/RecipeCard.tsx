@@ -651,7 +651,7 @@ export default function RecipeCard({ recipe, onDelete, onSave }: RecipeCardProps
         )}
 
         {/* Footer */}
-        <div className="border-t border-stone-100 px-6 py-3 text-xs text-stone-400 flex justify-between">
+        <div className="border-t border-stone-100 px-6 py-3 text-xs text-stone-400 flex justify-between pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <span>
             Saved{" "}
             {new Date(recipe.createdAt).toLocaleDateString("en-US", {

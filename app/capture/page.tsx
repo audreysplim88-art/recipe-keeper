@@ -358,14 +358,14 @@ export default function CapturePage() {
       )}
 
       {/* Nav */}
-      <nav className="bg-amber-800 text-white px-6 py-4 flex items-center gap-4">
-        <button onClick={handleNavBack} className="text-amber-200 hover:text-white transition-colors text-sm">
+      <nav className="bg-amber-800 text-white px-4 sm:px-6 pb-4 flex items-center justify-between" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
+        <button onClick={handleNavBack} className="text-amber-200 hover:text-white transition-colors text-sm shrink-0">
           ← Recipe Library
         </button>
-        <h1 className="font-serif text-xl font-bold">Capture a Recipe</h1>
+        <h1 className="font-serif text-lg sm:text-xl font-bold">Capture a Recipe</h1>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
         {stage === "capture" && (
           <>
             {/* Input mode tabs */}
@@ -392,8 +392,8 @@ export default function CapturePage() {
               <p className="text-amber-700 text-sm leading-relaxed">{MODE_HINTS[inputMode].body}</p>
             </div>
 
-            {/* Input area */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 mb-4">
+            {/* Input area — fixed min-height so button stays in place across tabs */}
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-6 mb-4 min-h-[16rem]">
               {inputMode === "narrate" && (
                 <VoiceCapture transcript={transcript} onTranscriptChange={setTranscript} />
               )}
@@ -403,7 +403,7 @@ export default function CapturePage() {
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
                   placeholder="Paste your recipe text here — from a blog, spreadsheet, Word document etc."
-                  className="w-full h-72 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm leading-relaxed"
+                  className="w-full h-48 sm:h-64 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-base leading-relaxed"
                 />
               )}
 
@@ -412,16 +412,14 @@ export default function CapturePage() {
                   <label className="block text-sm font-medium text-stone-600 mb-1">
                     Recipe page URL
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && canGenerate && !urlFetching && handleGenerate()}
-                      placeholder="https://www.instagram.com/reel/... or any recipe page URL"
-                      className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm"
-                    />
-                  </div>
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && canGenerate && !urlFetching && handleGenerate()}
+                    placeholder="https://www.instagram.com/reel/... or any recipe page URL"
+                    className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-base"
+                  />
                   <p className="text-xs text-stone-400">
                     The page must be publicly accessible. If it&apos;s behind a login or paywall, copy and paste the text instead.
                   </p>
@@ -439,11 +437,11 @@ export default function CapturePage() {
               </div>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex justify-center">
               <button
                 onClick={handleGenerate}
                 disabled={!canGenerate || urlFetching}
-                className="px-8 py-3 bg-amber-700 hover:bg-amber-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-md"
+                className="w-full sm:w-auto px-8 py-3.5 bg-amber-700 hover:bg-amber-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-md text-base"
               >
                 {generateLabel}
               </button>

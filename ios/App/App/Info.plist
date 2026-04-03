@@ -47,5 +47,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dodol needs your microphone for voice recipe narration and the Sous Chef cooking assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Dodol uses speech recognition to transcribe your recipe narration and understand voice commands during cooking.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dodol needs camera access to photograph recipes you want to capture.</string>
 </dict>
 </plist>

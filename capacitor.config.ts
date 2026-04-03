@@ -12,6 +12,10 @@ const config: CapacitorConfig = {
     url: "https://recipe-keeper-eta.vercel.app",
     cleartext: false,
   },
+  ios: {
+    // Prevent black flash while WebView loads the remote URL
+    backgroundColor: "#fafaf9",
+  },
 };
 
 export default config;

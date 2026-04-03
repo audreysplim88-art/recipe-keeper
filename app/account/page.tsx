@@ -156,24 +156,24 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-stone-100">
       {/* Nav */}
-      <nav className="bg-amber-800 text-white px-6 py-4 flex items-center gap-4">
-        <Link href="/" className="text-amber-200 hover:text-white transition-colors text-sm">
-          ← Recipe Library
+      <nav className="bg-amber-800 text-white px-4 sm:px-6 pb-4 flex items-center gap-3" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
+        <Link href="/" className="text-amber-200 hover:text-white transition-colors text-sm shrink-0">
+          ← Back
         </Link>
-        <h1 className="font-serif text-xl font-bold">Account</h1>
+        <h1 className="font-serif text-lg sm:text-xl font-bold">Account</h1>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
 
         {/* ── Profile Card ─────────────────────────────────────────────── */}
-        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-stone-400 uppercase tracking-wide mb-5">
             Profile
           </h2>
 
           <div className="flex items-start gap-5">
             {/* Avatar */}
-            <div className="w-16 h-16 rounded-full bg-amber-600 text-white font-bold text-2xl flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-600 text-white font-bold text-xl sm:text-2xl flex items-center justify-center shrink-0">
               {initial}
             </div>
 
@@ -240,7 +240,7 @@ export default function AccountPage() {
         </section>
 
         {/* ── Subscription Card ─────────────────────────────────────────── */}
-        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-stone-400 uppercase tracking-wide mb-5">
             Subscription
           </h2>
@@ -312,7 +312,7 @@ export default function AccountPage() {
         </section>
 
         {/* ── Account Actions Card ─────────────────────────────────────── */}
-        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+        <section className="bg-white rounded-2xl shadow-sm border border-stone-200 p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-stone-400 uppercase tracking-wide mb-5">
             Account
           </h2>

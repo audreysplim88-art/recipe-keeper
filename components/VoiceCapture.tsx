@@ -178,7 +178,7 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
             onTranscriptChange(e.target.value);
           }}
           placeholder="Your narration will appear here, or you can type directly. Speak naturally, as if sharing a recipe with a friend — include your tips, tricks and secrets."
-          className="w-full h-64 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-sm leading-relaxed"
+          className="w-full h-36 sm:h-48 p-4 border-2 border-amber-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-base leading-relaxed"
         />
         {interimText && (
           <div className="absolute bottom-3 right-3 text-xs text-amber-400 italic">
