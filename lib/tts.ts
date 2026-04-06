@@ -106,6 +106,7 @@ export class TTSManager {
    * Must be called synchronously from a click/tap handler before any await.
    */
   prime(): void {
+    console.log("[TTS] prime() called, backend:", this.backend);
     // Prime AudioContext for ElevenLabs
     if (typeof window !== "undefined") {
       if (!this.audioContext) {
@@ -114,6 +115,7 @@ export class TTSManager {
       if (this.audioContext.state === "suspended") {
         this.audioContext.resume();
       }
+      console.log("[TTS] AudioContext state:", this.audioContext.state);
     }
 
     // Also prime browser speechSynthesis as fallback
@@ -240,7 +242,14 @@ export class TTSManager {
     this.onSpeakingChange(true);
 
     if (this.backend === "elevenlabs") {
-      this.speakElevenLabs();
+      this.speakElevenLabs().catch((err) => {
+        console.warn("[TTS] Unhandled ElevenLabs error in processQueue:", err);
+        // Ensure we don't get stuck in speaking=true state
+        if (this.speaking) {
+          this.speaking = false;
+          this.onSpeakingChange(false);
+        }
+      });
     } else {
       this.speakBrowser();
     }
@@ -252,11 +261,13 @@ export class TTSManager {
 
   private async speakElevenLabs(): Promise<void> {
     const text = this.queue.shift()!;
+    console.log("[TTS] ElevenLabs speaking:", text.slice(0, 60));
 
     try {
       // Use prefetched audio if available for this exact text
       let audioBuffer: AudioBuffer | null = null;
       if (this.prefetchText === text && this.prefetchPromise) {
+        console.log("[TTS] Using prefetched audio");
         audioBuffer = await this.prefetchPromise;
         this.prefetchPromise = null;
         this.prefetchText = null;
@@ -264,12 +275,19 @@ export class TTSManager {
 
       // Otherwise fetch fresh
       if (!audioBuffer) {
+        console.log("[TTS] Fetching audio from /api/tts...");
         audioBuffer = await this.fetchAudio(text);
       }
 
       if (!audioBuffer) {
         throw new Error("Failed to decode audio");
       }
+
+      console.log(
+        "[TTS] Audio decoded, duration:",
+        audioBuffer.duration.toFixed(1),
+        "s"
+      );
 
       // Start prefetching the next sentence while this one plays
       if (this.queue.length > 0) {
@@ -279,6 +297,7 @@ export class TTSManager {
 
       // Play the audio
       await this.playAudioBuffer(audioBuffer);
+      console.log("[TTS] Playback finished");
 
       // Sentence finished — process next or signal done
       this.speaking = false;
@@ -288,7 +307,7 @@ export class TTSManager {
         this.onSpeakingChange(false);
       }
     } catch (err) {
-      console.warn("ElevenLabs TTS failed, falling back to browser:", err);
+      console.warn("[TTS] ElevenLabs failed, falling back to browser:", err);
       // Put the text back at the front of the queue and switch backends
       this.queue.unshift(text);
       this.speaking = false;
@@ -302,6 +321,13 @@ export class TTSManager {
   private async fetchAudio(text: string): Promise<AudioBuffer | null> {
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
+      console.log("[TTS] Created AudioContext, state:", this.audioContext.state);
+    }
+
+    // Ensure AudioContext is running (may be suspended without user gesture)
+    if (this.audioContext.state === "suspended") {
+      console.log("[TTS] Resuming suspended AudioContext...");
+      await this.audioContext.resume();
     }
 
     const response = await fetch("/api/tts", {
@@ -311,10 +337,13 @@ export class TTSManager {
     });
 
     if (!response.ok) {
+      const errorBody = await response.text().catch(() => "");
+      console.error("[TTS] API error:", response.status, errorBody.slice(0, 200));
       throw new Error(`TTS API returned ${response.status}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    console.log("[TTS] Received", arrayBuffer.byteLength, "bytes of audio");
     return this.audioContext.decodeAudioData(arrayBuffer);
   }
 
