@@ -158,7 +158,22 @@ export const PHOTO_MAX_DIMENSION_PX = 1920;
  */
 export const PHOTO_JPEG_QUALITY = 0.85;
 
-// ─── Text-to-speech ───────────────────────────────────────────────────────────
+// ─── ElevenLabs TTS ──────────────────────────────────────────────────────────
+
+/** ElevenLabs API base URL. */
+export const ELEVENLABS_API_URL = "https://api.elevenlabs.io";
+
+/**
+ * ElevenLabs voice ID.  "Rachel" is a warm, clear female voice well-suited
+ * for cooking instruction.  Change this to any voice_id from your ElevenLabs
+ * dashboard if you prefer a different voice.
+ */
+export const ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+
+/** ElevenLabs model.  Multilingual v2 gives the best quality. */
+export const ELEVENLABS_MODEL_ID = "eleven_multilingual_v2";
+
+// ─── Text-to-speech (browser fallback) ───────────────────────────────────────
 
 /**
  * Speech rate passed to SpeechSynthesisUtterance (browser default = 1.0).

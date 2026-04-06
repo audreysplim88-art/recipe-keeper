@@ -64,7 +64,7 @@ beforeEach(() => {
 
 describe("isAvailable", () => {
   it("returns true when speechSynthesis exists on window", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     expect(tts.isAvailable).toBe(true);
   });
 });
@@ -73,14 +73,14 @@ describe("isAvailable", () => {
 
 describe("appendText", () => {
   it("speaks a completed sentence immediately", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("The oil is ready.");
     expect(mockSpeak).toHaveBeenCalledTimes(1);
     expect(lastUtterance?.text).toBe("The oil is ready.");
   });
 
   it("splits two sentences and queues the second", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Stir gently. Add the garlic.");
     // First sentence spoken immediately
     expect(mockSpeak).toHaveBeenCalledTimes(1);
@@ -93,7 +93,7 @@ describe("appendText", () => {
   });
 
   it("buffers an incomplete sentence until a boundary arrives", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("The onions should be");
     expect(mockSpeak).not.toHaveBeenCalled();
     tts.appendText(" golden brown.");
@@ -102,7 +102,7 @@ describe("appendText", () => {
   });
 
   it("handles exclamation and question marks as boundaries", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Do you have all your ingredients? Great!");
     // Two sentences split
     expect(mockSpeak).toHaveBeenCalledTimes(1);
@@ -113,7 +113,7 @@ describe("appendText", () => {
   });
 
   it("does not speak empty or whitespace-only segments", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("   ");
     expect(mockSpeak).not.toHaveBeenCalled();
   });
@@ -123,7 +123,7 @@ describe("appendText", () => {
 
 describe("flush", () => {
   it("speaks remaining buffer that has no trailing punctuation", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Add a pinch of salt");
     expect(mockSpeak).not.toHaveBeenCalled(); // no sentence boundary yet
     tts.flush();
@@ -132,13 +132,13 @@ describe("flush", () => {
   });
 
   it("does nothing when buffer is empty", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.flush();
     expect(mockSpeak).not.toHaveBeenCalled();
   });
 
   it("clears the buffer after flushing", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Season to taste");
     tts.flush();
     // A second flush should not speak again
@@ -151,13 +151,13 @@ describe("flush", () => {
 
 describe("interrupt", () => {
   it("calls speechSynthesis.cancel()", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.interrupt();
     expect(mockCancel).toHaveBeenCalledTimes(1);
   });
 
   it("empties the queue so no further speech plays", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     // Queue up two sentences
     tts.appendText("First sentence. Second sentence.");
     expect(mockSpeak).toHaveBeenCalledTimes(1);
@@ -171,7 +171,7 @@ describe("interrupt", () => {
 
   it("calls onSpeakingChange(false)", () => {
     const onChange = jest.fn();
-    const tts = new TTSManager(onChange);
+    const tts = new TTSManager(onChange, { backend: "browser" });
     tts.appendText("Hello.");
     onChange.mockClear();
     tts.interrupt();
@@ -179,7 +179,7 @@ describe("interrupt", () => {
   });
 
   it("sets isSpeaking to false", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Hello.");
     tts.interrupt();
     expect(tts.isSpeaking).toBe(false);
@@ -191,14 +191,14 @@ describe("interrupt", () => {
 describe("onSpeakingChange callback", () => {
   it("fires true when first utterance starts", () => {
     const onChange = jest.fn();
-    const tts = new TTSManager(onChange);
+    const tts = new TTSManager(onChange, { backend: "browser" });
     tts.appendText("Hello chef.");
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
   it("fires false when the last utterance ends", () => {
     const onChange = jest.fn();
-    const tts = new TTSManager(onChange);
+    const tts = new TTSManager(onChange, { backend: "browser" });
     tts.appendText("Ready to cook.");
     onChange.mockClear();
     lastUtterance!.onend!();
@@ -207,7 +207,7 @@ describe("onSpeakingChange callback", () => {
 
   it("stays true between chained sentences", () => {
     const onChange = jest.fn();
-    const tts = new TTSManager(onChange);
+    const tts = new TTSManager(onChange, { backend: "browser" });
     tts.appendText("First. Second.");
     onChange.mockClear();
     // End first sentence — second is queued, so should NOT fire false yet
@@ -223,7 +223,7 @@ describe("onSpeakingChange callback", () => {
 
 describe("destroy", () => {
   it("cancels speech and clears timers without throwing", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.setupVisibilityWorkaround();
     tts.appendText("About to be destroyed.");
     expect(() => tts.destroy()).not.toThrow();
@@ -235,13 +235,13 @@ describe("destroy", () => {
 
 describe("utterance settings", () => {
   it("sets rate to TTS_SPEECH_RATE", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Reduce the heat now.");
     expect(lastUtterance?.rate).toBe(TTS_SPEECH_RATE);
   });
 
   it("sets pitch to TTS_SPEECH_PITCH", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Reduce the heat now.");
     expect(lastUtterance?.pitch).toBe(TTS_SPEECH_PITCH);
   });
@@ -260,7 +260,7 @@ describe("voice selection", () => {
       makeVoice("Google UK English Female"),
       makeVoice("Samantha"),
     ]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Ready.");
     expect(lastUtterance?.voice?.name).toBe("Google UK English Female");
   });
@@ -270,7 +270,7 @@ describe("voice selection", () => {
       makeVoice("Google UK English Male"),
       makeVoice("Google US English Female"),
     ]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Ready.");
     expect(lastUtterance?.voice?.name).toBe("Google US English Female");
   });
@@ -280,7 +280,7 @@ describe("voice selection", () => {
       makeVoice("Samantha"),
       makeVoice("Samantha (Enhanced)"),
     ]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Ready.");
     expect(lastUtterance?.voice?.name).toBe("Samantha (Enhanced)");
   });
@@ -291,14 +291,14 @@ describe("voice selection", () => {
       makeVoice("Flo", "en-GB"),
       makeVoice("Alice", "it-IT"),
     ]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Ready.");
     expect(lastUtterance?.voice?.name).toBe("Flo");
   });
 
   it("sets no voice (browser default) when getVoices returns an empty list", () => {
     mockGetVoices.mockReturnValue([]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.appendText("Ready.");
     // voice property stays at the MockUtterance default (null)
     expect(lastUtterance?.voice).toBeNull();
@@ -313,14 +313,14 @@ describe("eager voice loading", () => {
       makeVoice("Samantha"),
       makeVoice("Google UK English Female"),
     ]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.setupVisibilityWorkaround();
     tts.appendText("Ready.");
     expect(lastUtterance?.voice?.name).toBe("Google UK English Female");
   });
 
   it("registers a voiceschanged listener on speechSynthesis during setup", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.setupVisibilityWorkaround();
     const registeredEvents = mockSynthAddEventListener.mock.calls.map(([event]) => event);
     expect(registeredEvents).toContain("voiceschanged");
@@ -329,7 +329,7 @@ describe("eager voice loading", () => {
   it("updates the cached voice when the voiceschanged event fires", () => {
     // Start with no voices (Chrome's initial state)
     mockGetVoices.mockReturnValue([]);
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.setupVisibilityWorkaround();
 
     // Voices arrive asynchronously
@@ -346,7 +346,7 @@ describe("eager voice loading", () => {
   });
 
   it("removes the voiceschanged listener when destroy() is called", () => {
-    const tts = new TTSManager(jest.fn());
+    const tts = new TTSManager(jest.fn(), { backend: "browser" });
     tts.setupVisibilityWorkaround();
     tts.destroy();
     const removedEvents = mockSynthRemoveEventListener.mock.calls.map(([event]) => event);
