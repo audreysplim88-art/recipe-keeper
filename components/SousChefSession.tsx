@@ -20,17 +20,6 @@ interface SousChefSessionProps {
   onExit: () => void;
 }
 
-// ─── Wake phrase detection ─────────────────────────────────────────────────────
-// Isolated in a single function so it can be swapped for a noise-robust
-// library (e.g. Porcupine, Whisper) without touching the session UI.
-
-const WAKE_PHRASE_PATTERN =
-  /hello\s*chef|hey\s*chef|hi\s*chef|start|begin|let'?s\s*(go|cook|start)|ready/i;
-
-function isWakePhrase(text: string): boolean {
-  return WAKE_PHRASE_PATTERN.test(text.trim());
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Scan Claude's response for step advancement language */
@@ -99,8 +88,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
       });
     }
 
-    // Mic is active during waiting (for wake phrase detection)
-    setIsListening(true);
+    // Mic starts inactive; it activates once TTS finishes speaking
   }, []);
 
   // ─── Send a message to the sous chef API ────────────────────────────────────
@@ -208,25 +196,16 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
 
   const handleSend = useCallback(
     (text: string) => {
-      if (phase === "waiting") {
-        // Only respond to wake phrases during the waiting phase
-        if (isWakePhrase(text)) {
-          handleBegin(text);
-        }
-        // Non-matching speech is silently ignored
-        return;
-      }
+      if (phase === "waiting") return; // Session starts only via the button
       sendMessage(text, messages);
     },
-    [phase, handleBegin, sendMessage, messages]
+    [phase, sendMessage, messages]
   );
 
   const handleSpeechStart = useCallback(() => {
-    if (phase !== "waiting") {
-      ttsRef.current?.interrupt();
-    }
+    ttsRef.current?.interrupt();
     setIsListening(true);
-  }, [phase]);
+  }, []);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -296,8 +275,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
 
           {micPermission === "granted" ? (
             <p className="text-gray-400 text-sm">
-              Say <span className="text-white font-medium">&ldquo;Hello Chef&rdquo;</span> to begin,
-              or tap the button below
+              Tap the button below when you&rsquo;re ready to start
             </p>
           ) : micPermission === "denied" ? (
             <div className="flex flex-col items-center gap-3 mt-2 bg-gray-900 rounded-2xl p-5">
@@ -342,25 +320,6 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           Start Cooking
         </button>
 
-        {/* Mic listening indicator */}
-        {micPermission === "granted" && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Listening for wake phrase…
-          </div>
-        )}
-
-        {/* Voice input active during waiting for wake phrase detection */}
-        {micPermission === "granted" && (
-          <div className="sr-only">
-            <CookingVoiceInput
-              isActive={isListening}
-              onSend={handleSend}
-              onSpeechStart={handleSpeechStart}
-              disabled={false}
-            />
-          </div>
-        )}
       </div>
     );
   }
