@@ -164,11 +164,11 @@ export const PHOTO_JPEG_QUALITY = 0.85;
 export const ELEVENLABS_API_URL = "https://api.elevenlabs.io";
 
 /**
- * ElevenLabs voice ID.  "Eryn" — a natural, friendly voice well-suited
- * for cooking instruction.  Change this to any voice_id from your ElevenLabs
- * dashboard if you prefer a different voice.
+ * ElevenLabs voice ID.  "Sarah" — a mature, reassuring premade voice
+ * available on the free tier.  Change this to any premade voice_id from
+ * your ElevenLabs dashboard if you prefer a different voice.
  */
-export const ELEVENLABS_VOICE_ID = "DXFkLCBUTmvXpp2QwZjA";
+export const ELEVENLABS_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah — free tier premade voice (Mature, Reassuring, Confident)
 
 /** ElevenLabs model.  Multilingual v2 gives the best quality. */
 export const ELEVENLABS_MODEL_ID = "eleven_multilingual_v2";

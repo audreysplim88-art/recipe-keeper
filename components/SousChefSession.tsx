@@ -575,10 +575,10 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
       >
         <CookingVoiceInput
-          isActive={isListening && !isLoading}
+          isActive={isListening && !isLoading && !isSpeaking}
           onSend={handleSend}
           onSpeechStart={handleSpeechStart}
-          disabled={isLoading}
+          disabled={isLoading || isSpeaking}
         />
         {isLoading && (
           <p className="text-xs text-gray-500 animate-pulse">Chef is thinking…</p>

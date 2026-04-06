@@ -128,6 +128,7 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
+          console.error("Sous chef stream error:", err);
           const message =
             err instanceof Anthropic.AuthenticationError
               ? "Invalid API key."
