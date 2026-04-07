@@ -438,7 +438,16 @@ export default function CapturePage() {
                       type="button"
                       onClick={async () => {
                         try {
-                          const text = await navigator.clipboard.readText();
+                          let text: string | undefined;
+                          // Use native Capacitor clipboard on iOS (no permission required)
+                          if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform()) {
+                            const { Clipboard } = await import("@capacitor/clipboard");
+                            const { value } = await Clipboard.read();
+                            text = value;
+                          } else {
+                            // Web fallback
+                            text = await navigator.clipboard.readText();
+                          }
                           if (text?.trim()) setUrlInput(text.trim());
                         } catch {
                           // Clipboard not available
