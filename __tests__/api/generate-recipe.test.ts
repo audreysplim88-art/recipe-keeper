@@ -17,6 +17,14 @@
  *  - Authentication error (401) and generic error (500) handling
  */
 
+// ─── Mock auth & rate limiting ───────────────────────────────────────────────
+jest.mock("@/lib/api-auth", () => ({
+  requireAuth: jest.fn().mockResolvedValue({ user: { id: "test-user-id" } }),
+}));
+jest.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: jest.fn().mockReturnValue(true),
+}));
+
 import { POST } from "@/app/api/generate-recipe/route";
 import { MIN_TRANSCRIPT_CHARS, CAPTURE_MIN_CONTENT_CHARS } from "@/lib/constants";
 

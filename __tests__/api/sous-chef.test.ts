@@ -15,6 +15,14 @@
  *  - System prompt includes recipe details
  */
 
+// ─── Mock auth & rate limiting ───────────────────────────────────────────────
+jest.mock("@/lib/api-auth", () => ({
+  requireAuth: jest.fn().mockResolvedValue({ user: { id: "test-user-id" } }),
+}));
+jest.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: jest.fn().mockReturnValue(true),
+}));
+
 import { POST } from "@/app/api/sous-chef/route";
 import { Recipe } from "@/lib/types";
 

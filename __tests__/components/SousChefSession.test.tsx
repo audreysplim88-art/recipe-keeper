@@ -176,10 +176,10 @@ describe("waiting screen", () => {
     expect(screen.getByRole("button", { name: /start cooking/i })).toBeInTheDocument();
   });
 
-  it("shows a listening indicator for wake phrase detection", () => {
+  it("shows the Start Cooking button on the waiting screen", () => {
     mockFetchSuccess(["Hello!"]);
     render(<SousChefSession recipe={makeRecipe()} onExit={jest.fn()} />);
-    expect(screen.getByText(/listening for wake phrase/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start cooking/i })).toBeInTheDocument();
   });
 
   it("exit button works on waiting screen", async () => {

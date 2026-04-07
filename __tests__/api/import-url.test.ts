@@ -18,6 +18,14 @@
  *  - Script/style stripping from extracted body text
  */
 
+// ─── Mock auth & rate limiting ───────────────────────────────────────────────
+jest.mock("@/lib/api-auth", () => ({
+  requireAuth: jest.fn().mockResolvedValue({ user: { id: "test-user-id" } }),
+}));
+jest.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: jest.fn().mockReturnValue(true),
+}));
+
 import { POST } from "@/app/api/import-url/route";
 
 // ─── Mock global fetch ────────────────────────────────────────────────────────
