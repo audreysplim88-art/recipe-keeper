@@ -255,8 +255,8 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
         {/* Exit */}
         <button
           onClick={onExit}
-          className="absolute top-4 left-4 p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
-          style={{ minWidth: 44, minHeight: 44 }}
+          className="absolute left-4 p-2 -m-2 flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          style={{ minWidth: 44, minHeight: 44, top: "max(1rem, env(safe-area-inset-top))" }}
           aria-label="Exit cooking session"
         >
           ← Exit

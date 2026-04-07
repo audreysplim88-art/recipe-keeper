@@ -20,6 +20,7 @@ import {
   TTS_END_POLL_INTERVAL_MS,
   TTS_PREFERRED_VOICES,
 } from "@/lib/constants";
+import { API_BASE } from "@/lib/api";
 
 // Sentence-ending punctuation followed by whitespace or end-of-string
 const SENTENCE_BOUNDARY = /[.!?]+(?=\s|$)/;
@@ -319,7 +320,7 @@ export class TTSManager {
       await this.audioContext.resume();
     }
 
-    const response = await fetch("/api/tts", {
+    const response = await fetch(`${API_BASE}/api/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),

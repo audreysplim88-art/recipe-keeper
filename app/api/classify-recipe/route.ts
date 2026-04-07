@@ -3,6 +3,8 @@ import { DietaryTag, AllergenTag } from "@/lib/types";
 import { CLASSIFY_MODEL, CLASSIFY_MAX_TOKENS } from "@/lib/constants";
 import { stripCodeFences } from "@/lib/prompts";
 import { handleAnthropicError } from "@/lib/api-utils";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -20,6 +22,16 @@ RULES:
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
 export async function POST(request: Request) {
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  if (!checkRateLimit(`classify-recipe:${auth.user.id}`, 20, 10 * 60 * 1000)) {
+    return Response.json(
+      { error: "Too many classification requests. Please wait a moment." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { title, description, ingredients } = await request.json();
 

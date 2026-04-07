@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { requireAuth } from "@/lib/api-auth";
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY ?? "").trim(), {
   apiVersion: "2026-03-25.dahlia",
@@ -48,6 +49,9 @@ function buildPriceInfo(price: Stripe.Price): StripePriceInfo {
 }
 
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
   const monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID ?? "").trim();
   const annualId = (process.env.STRIPE_ANNUAL_PRICE_ID ?? "").trim();
   const secretKey = (process.env.STRIPE_SECRET_KEY ?? "").trim();
