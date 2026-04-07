@@ -67,6 +67,19 @@ export default function CapturePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Handle recipe URL shared from iOS Share Extension (dodol://import?url=…)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const importUrl = params.get("importUrl");
+    if (importUrl) {
+      setInputMode("url");
+      setUrlInput(decodeURIComponent(importUrl));
+      // Clean the URL so a refresh doesn't re-trigger the import
+      router.replace("/capture");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [inputMode, setInputMode] = useState<InputMode>("narrate");
   const [transcript, setTranscript] = useState("");   // narrate + paste share this
   const [urlInput, setUrlInput] = useState("");

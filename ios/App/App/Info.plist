@@ -53,5 +53,16 @@
 	<string>Dodol uses speech recognition to transcribe your recipe narration and understand voice commands during cooking.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Dodol needs camera access to photograph recipes you want to capture.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.dodol.recipes</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dodol</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
