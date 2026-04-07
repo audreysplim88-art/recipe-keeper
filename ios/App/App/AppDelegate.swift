@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Set audio session to playback so:
+        // - Side volume buttons control media volume (not ringer)
+        // - Audio plays through the speaker even when silent mode is on
+        // - Required for ElevenLabs TTS in Sous Chef to behave correctly
+        try? AVAudioSession.sharedInstance().setCategory(
+            .playback,
+            mode: .default,
+            options: .defaultToSpeaker
+        )
+        try? AVAudioSession.sharedInstance().setActive(true)
         return true
     }
 
