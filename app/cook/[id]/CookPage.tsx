@@ -67,7 +67,7 @@ export default function CookPage() {
           style={{ minWidth: 44, minHeight: 44 }}
           aria-label="Back to recipe"
         >
-          ← Back
+          ← Back to Recipe
         </button>
 
         {/* Icon */}

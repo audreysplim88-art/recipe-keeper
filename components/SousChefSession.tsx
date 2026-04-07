@@ -259,7 +259,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           style={{ minWidth: 44, minHeight: 44, top: "max(1rem, env(safe-area-inset-top))" }}
           aria-label="Exit cooking session"
         >
-          ← Exit
+          ← Back to Recipe
         </button>
 
         {/* Prompt */}
@@ -338,7 +338,7 @@ export default function SousChefSession({ recipe, onExit }: SousChefSessionProps
           style={{ minWidth: 44, minHeight: 44 }}
           aria-label="Exit cooking session"
         >
-          ← Exit
+          ← Back to Recipe
         </button>
         <div className="flex-1 min-w-0 text-center">
           <p className="text-sm font-semibold text-white truncate">

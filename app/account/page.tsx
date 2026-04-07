@@ -156,9 +156,9 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-stone-100">
       {/* Nav */}
-      <nav className="bg-amber-800 text-white px-4 sm:px-6 pb-4 flex items-center gap-3" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
+      <nav className="bg-amber-800 text-white px-4 sm:px-6 pb-4 flex items-center justify-between" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
         <Link href="/" className="text-amber-200 hover:text-white transition-colors text-sm shrink-0">
-          ← Back
+          ← Recipe Library
         </Link>
         <h1 className="font-serif text-lg sm:text-xl font-bold">Account</h1>
       </nav>

@@ -60,6 +60,7 @@ export const RECIPE_SHARED_RULES = `- The "tips" array captures wisdom that does
 - Choose the most appropriate "category" based on the dish — use "other" only as a last resort.
 - For "dietaryTags": only include a tag if the recipe genuinely meets that standard (e.g. vegan means no animal products at all).
 - For "allergens": be thorough — scan every ingredient and include all relevant EU/UK Big 14 allergens present.
+- ALWAYS use standard abbreviations for measurement units in ingredients: tbsp (tablespoon), tsp (teaspoon), oz (ounce), lb (pound), g (gram), kg (kilogram), ml (millilitre), L (litre), cup, pinch, dash, clove. Never spell out "tablespoon", "teaspoon", etc. in the ingredients array.
 - Return ONLY the JSON object, no markdown, no explanation.`;
 
 // ─── Response utilities ───────────────────────────────────────────────────────
