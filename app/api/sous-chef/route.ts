@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Recipe } from "@/lib/types";
 import { RECIPE_MODEL, SOUS_CHEF_MAX_TOKENS, SOUS_CHEF_CONVERSATION_WINDOW } from "@/lib/constants";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -85,6 +87,18 @@ RULES:
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  // Authentication
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  // Rate limit: 30 messages per 10 minutes per user
+  if (!checkRateLimit(`sous-chef:${auth.user.id}`, 30, 10 * 60 * 1000)) {
+    return Response.json(
+      { error: "Too many requests. Please wait a moment before continuing." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body: SousChefRequest = await request.json();
     const { messages, recipe } = body;

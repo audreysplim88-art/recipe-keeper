@@ -3,6 +3,10 @@ import { RecipeGenerationResult } from "@/lib/types";
 import { RECIPE_MODEL, RECIPE_MAX_TOKENS, MIN_TRANSCRIPT_CHARS } from "@/lib/constants";
 import { RECIPE_JSON_SCHEMA, RECIPE_SHARED_RULES, stripCodeFences } from "@/lib/prompts";
 import { handleAnthropicError } from "@/lib/api-utils";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const MAX_TRANSCRIPT_CHARS = 100_000;
 
 // Allow up to 60 s on Vercel Pro (Claude can take 20–40 s for long recipes)
 export const maxDuration = 60;
@@ -33,11 +37,27 @@ const USER_MESSAGES: Record<string, (content: string) => string> = {
 };
 
 export async function POST(request: Request) {
+  // Authentication
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  // Rate limit: 10 generations per hour per user
+  if (!checkRateLimit(`generate-recipe:${auth.user.id}`, 10, 60 * 60 * 1000)) {
+    return Response.json(
+      { error: "Too many recipe generations. Please wait before trying again." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { transcript, source = "narration" } = await request.json();
 
     if (!transcript || typeof transcript !== "string" || transcript.trim().length < MIN_TRANSCRIPT_CHARS) {
       return Response.json({ error: "Please provide some recipe content." }, { status: 400 });
+    }
+
+    if (transcript.trim().length > MAX_TRANSCRIPT_CHARS) {
+      return Response.json({ error: "Content is too long to process." }, { status: 400 });
     }
 
     const getUserMessage = USER_MESSAGES[source] ?? USER_MESSAGES.narration;

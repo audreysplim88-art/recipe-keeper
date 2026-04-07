@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
+  // Validate price ID is one of the known configured prices
+  const validPriceIds = new Set(Object.values(PRICE_IDS).filter(Boolean));
+  if (!validPriceIds.has(priceId)) {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+  }
+
   try {
     // Get or create Stripe customer
     const { data: sub } = await supabase

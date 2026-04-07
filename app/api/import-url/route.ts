@@ -14,6 +14,12 @@ import {
   INSTAGRAM_MIN_CAPTION_CHARS,
   URL_FETCH_USER_AGENT,
 } from "@/lib/constants";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+// Block private/internal IP ranges to prevent SSRF attacks
+const PRIVATE_HOST =
+  /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|::1)/i;
 
 function isInstagramUrl(url: URL): boolean {
   return url.hostname === "www.instagram.com" || url.hostname === "instagram.com";
@@ -68,6 +74,18 @@ function extractText(html: string): string {
 }
 
 export async function POST(request: Request) {
+  // Authentication
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  // Rate limit: 20 URL imports per 10 minutes per user
+  if (!checkRateLimit(`import-url:${auth.user.id}`, 20, 10 * 60 * 1000)) {
+    return Response.json(
+      { error: "Too many URL imports. Please wait a moment before trying again." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { url } = await request.json();
 
@@ -85,6 +103,11 @@ export async function POST(request: Request) {
 
     if (!["http:", "https:"].includes(parsedUrl.protocol)) {
       return Response.json({ error: "Only http and https URLs are supported." }, { status: 400 });
+    }
+
+    // Block private/internal IP ranges (SSRF protection)
+    if (PRIVATE_HOST.test(parsedUrl.hostname)) {
+      return Response.json({ error: "That URL is not accessible." }, { status: 400 });
     }
 
     // Fetch the page

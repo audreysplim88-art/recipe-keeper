@@ -15,6 +15,8 @@ import { RecipeGenerationResult } from "@/lib/types";
 import { RECIPE_MODEL, RECIPE_MAX_TOKENS, PHOTO_MAX_COUNT } from "@/lib/constants";
 import { RECIPE_JSON_SCHEMA, RECIPE_SHARED_RULES, stripCodeFences } from "@/lib/prompts";
 import { handleAnthropicError } from "@/lib/api-utils";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -44,6 +46,18 @@ ${RECIPE_SHARED_RULES}
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  // Authentication
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  // Rate limit: 5 vision generations per hour per user (expensive Claude calls)
+  if (!checkRateLimit(`generate-recipe-images:${auth.user.id}`, 5, 60 * 60 * 1000)) {
+    return Response.json(
+      { error: "Too many photo recipe generations. Please wait before trying again." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const images: Array<{ base64: string; mediaType: string }> = body.images;

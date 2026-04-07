@@ -4,6 +4,8 @@ import {
   ELEVENLABS_VOICE_ID,
   ELEVENLABS_MODEL_ID,
 } from "@/lib/constants";
+import { requireAuth } from "@/lib/api-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +16,18 @@ interface TTSRequest {
 // ─── POST /api/tts ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // Authentication
+  const auth = await requireAuth();
+  if (auth instanceof Response) return auth;
+
+  // Rate limit: 100 TTS requests per 10 minutes per user
+  if (!checkRateLimit(`tts:${auth.user.id}`, 100, 10 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429 }
+    );
+  }
+
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
