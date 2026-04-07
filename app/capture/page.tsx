@@ -425,14 +425,30 @@ export default function CapturePage() {
                   <label className="block text-sm font-medium text-stone-600 mb-1">
                     Recipe page URL
                   </label>
-                  <input
-                    type="url"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && canGenerate && !urlFetching && handleGenerate()}
-                    placeholder="https://www.instagram.com/reel/... or any recipe page URL"
-                    className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-base"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && canGenerate && !urlFetching && handleGenerate()}
+                      placeholder="https://www.instagram.com/reel/... or any recipe page URL"
+                      className="flex-1 min-w-0 px-4 py-3 border-2 border-amber-200 rounded-xl focus:outline-none focus:border-amber-400 text-stone-700 bg-amber-50 text-base"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          if (text?.trim()) setUrlInput(text.trim());
+                        } catch {
+                          // Clipboard not available
+                        }
+                      }}
+                      className="shrink-0 px-4 py-3 bg-amber-100 hover:bg-amber-200 text-amber-700 font-medium rounded-xl border-2 border-amber-200 transition-colors text-sm"
+                    >
+                      Paste
+                    </button>
+                  </div>
                   <p className="text-xs text-stone-400">
                     The page must be publicly accessible. If it&apos;s behind a login or paywall, copy and paste the text instead.
                   </p>
