@@ -15,8 +15,10 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
   const [interimText, setInterimText] = useState("");
   const [networkWarning, setNetworkWarning] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
+  const [noResultsWarning, setNoResultsWarning] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastResultTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -31,6 +33,9 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
     recognition.lang = "en-US";
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      lastResultTimeRef.current = Date.now();
+      setNoResultsWarning(false);
+
       let interim = "";
       let finalTranscript = "";
 
@@ -129,6 +134,22 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
     }
   }, [transcript, interimText]);
 
+  // Detect silent failure — if listening for 8s with no results, warn user
+  // (Chrome's Speech API streams to Google servers; VPNs/firewalls silently block it)
+  useEffect(() => {
+    if (!isListening) {
+      setNoResultsWarning(false);
+      return;
+    }
+    lastResultTimeRef.current = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - lastResultTimeRef.current > 8000) {
+        setNoResultsWarning(true);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isListening]);
+
   return (
     <div className="space-y-4">
       {/* Voice button */}
@@ -164,6 +185,11 @@ export default function VoiceCapture({ transcript, onTranscriptChange }: VoiceCa
         {networkWarning && (
           <span className="text-sm text-amber-600 font-medium flex items-center gap-1.5">
             <span>⚠️</span> Brief network hiccup — still listening...
+          </span>
+        )}
+        {noResultsWarning && (
+          <span className="text-sm text-amber-700 font-medium flex items-center gap-1.5">
+            <span>⚠️</span> Chrome can&apos;t reach Google&apos;s speech service. Try disabling a VPN, or use Safari instead.
           </span>
         )}
       </div>
