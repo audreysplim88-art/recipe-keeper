@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
       {
         // After the user clicks the link, Supabase redirects to /auth/callback
         // which exchanges the code and then sends them to /auth/reset-password.
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
       }
     );
 
