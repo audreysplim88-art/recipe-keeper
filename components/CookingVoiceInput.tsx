@@ -66,6 +66,8 @@ export default function CookingVoiceInput({
   const [iosListening, setIosListening] = useState(false);
   // Mic denied / error message
   const [micError, setMicError] = useState<string | null>(null);
+  const [noResultsWarning, setNoResultsWarning] = useState(false);
+  const lastResultTimeRef = useRef<number>(0);
 
   // ─── Send helper ────────────────────────────────────────────────────────────
 
@@ -93,6 +95,9 @@ export default function CookingVoiceInput({
     recognition.lang = "en-US";
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      lastResultTimeRef.current = Date.now();
+      setNoResultsWarning(false);
+
       // Notify parent immediately on first speech so TTS can be interrupted
       if (transcriptRef.current === "") {
         onSpeechStartRef.current?.();
@@ -194,6 +199,23 @@ export default function CookingVoiceInput({
     }
   }, [isActive, disabled, sendAndClear]);
 
+  // ─── Silent failure detection ────────────────────────────────────────────────
+  // Chrome streams to Google's servers — a VPN/firewall silently blocks results.
+  // If active for 8s with no results, warn the user.
+  useEffect(() => {
+    if (!isActive || disabled || isIOS) {
+      setNoResultsWarning(false);
+      return;
+    }
+    lastResultTimeRef.current = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - lastResultTimeRef.current > 8000) {
+        setNoResultsWarning(true);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isActive, disabled]);
+
   // ─── iOS tap-to-speak handler ────────────────────────────────────────────────
 
   const handleIOSTap = useCallback(() => {
@@ -276,37 +298,44 @@ export default function CookingVoiceInput({
   // ─── Voice UI ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-label={
-        disabled
-          ? "Waiting…"
-          : isActive
-          ? "Listening — speak your response"
-          : "AI is speaking"
-      }
-      className={`flex items-center justify-center gap-3 px-6 py-4 rounded-full transition-all duration-300 ${
-        disabled
-          ? "bg-gray-800 opacity-50"
-          : isActive
-          ? "bg-amber-500/20 border border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-          : "bg-blue-500/20 border border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]"
-      }`}
-    >
-      {/* Animated dot */}
-      <span
-        className={`w-3 h-3 rounded-full ${
+    <div className="flex flex-col items-center gap-2 w-full">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label={
           disabled
-            ? "bg-gray-500"
+            ? "Waiting…"
             : isActive
-            ? "bg-amber-400 animate-pulse"
-            : "bg-blue-400 animate-pulse"
+            ? "Listening — speak your response"
+            : "AI is speaking"
+        }
+        className={`flex items-center justify-center gap-3 px-6 py-4 rounded-full transition-all duration-300 ${
+          disabled
+            ? "bg-gray-800 opacity-50"
+            : isActive
+            ? "bg-amber-500/20 border border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+            : "bg-blue-500/20 border border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]"
         }`}
-      />
-      <span className="text-sm font-medium text-gray-200">
-        {disabled ? "Waiting…" : isActive ? "Listening" : "Speaking"}
-      </span>
+      >
+        {/* Animated dot */}
+        <span
+          className={`w-3 h-3 rounded-full ${
+            disabled
+              ? "bg-gray-500"
+              : isActive
+              ? "bg-amber-400 animate-pulse"
+              : "bg-blue-400 animate-pulse"
+          }`}
+        />
+        <span className="text-sm font-medium text-gray-200">
+          {disabled ? "Waiting…" : isActive ? "Listening" : "Speaking"}
+        </span>
+      </div>
+      {noResultsWarning && (
+        <p className="text-xs text-amber-400 text-center px-4">
+          ⚠️ Chrome can&apos;t reach Google&apos;s speech service. Try disabling a VPN, or use Safari instead.
+        </p>
+      )}
     </div>
   );
 }
